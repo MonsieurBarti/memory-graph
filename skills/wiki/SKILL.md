@@ -424,15 +424,21 @@ Run only when explicitly asked. Heavy by design — this is the operation that b
 
 1. **Index drift** (cheap — one ls + one read of `index.md`)
 2. **Broken links** (cheap — grep all `[[wikilinks]]`, check each target exists)
-3. **Stale sources** (cheap — `stat` on `raw/` vs matching `sources/` pages)
-4. **Schema drift** (cheap-medium — read SCHEMA, walk frontmatter on every page)
-5. **Orphans** (medium — grep every page for backlinks to every other page)
-6. **Missing pages** (medium — count name occurrences across pages)
-7. **Uncited claims** (medium — heuristic per page)
-8. **Contradictions** (heavy — semantic, requires reading content)
-9. **Rule drift** (heavy — semantic, requires comparing pages against SCHEMA workflows/rules)
+3. **Broken supersession** (cheap — frontmatter walk for `supersedes`/`supersededBy` + bidirectional integrity)
+4. **Stale sources** (cheap — `stat` on `raw/` vs matching `sources/` pages)
+5. **Stale pages** (cheap-medium — frontmatter walk for `lastRetrieved` + `halfLifeDays`)
+6. **Open conflicts** (cheap — list `wiki/conflicts/*.md` with `status: open`)
+7. **Schema drift** (cheap-medium — read SCHEMA, walk frontmatter on every page)
+8. **Inline-contradiction-recurring** (medium — grep `> ⚠ contradicted by` markers, group by subject)
+9. **Orphans** (medium — grep every page for backlinks to every other page)
+10. **Missing pages** (medium — count name occurrences across pages)
+11. **Uncited claims** (medium — heuristic per page)
+12. **Contradictions** (heavy — semantic, requires reading content)
+13. **Rule drift** (heavy — semantic, requires comparing pages against SCHEMA workflows/rules)
 
-Skip 8 and 9 unless the user explicitly asks for them, or unless 1–7 produced fewer than ~10 issues.
+Skip 12 and 13 unless the user explicitly asks for them, or unless 1–11 produced fewer than ~10 issues.
+
+Checks 3, 5, 6, and 8 only run when their underlying SCHEMA features are enabled (decay metadata for 3+5, `conflict` page kind for 6, both for 8). When SCHEMA opts out, the check is a no-op.
 
 **Per-issue detection algorithm:**
 
@@ -440,7 +446,11 @@ Skip 8 and 9 unless the user explicitly asks for them, or unless 1–7 produced 
 |---|---|
 | `INDEX-DRIFT` | `ls wiki/{entities,concepts,sources,synthesis}/*.md` vs the wikilinks in `index.md`. Two failure modes: page on disk not in index; index entry resolving to a missing page. |
 | `BROKEN-LINK` | grep `\[\[wiki/[^\]]+\]\]` across all wiki pages; for each, check the target file exists. Dedupe by (source page, target). |
+| `BROKEN-SUPERSESSION` | walk frontmatter on every page; for each `supersededBy:` and each entry in `supersedes:`, check the target wikipath resolves to an existing page. Also: if `A.supersededBy == B`, check `B.supersedes` contains `A` (bidirectional integrity). Skip silently if SCHEMA opted out of decision/decay metadata. |
 | `STALE-SOURCE` | for each `wiki/sources/<slug>.md`, read its `sourceFile:` frontmatter, `stat` both, compare mtimes. Flag if raw is newer. |
+| `STALE-PAGE` | walk frontmatter; for each page with `lastRetrieved` set: flag if `now - lastRetrieved > 3 × halfLifeDays` AND `confidence != verified`. Always flag pages with `confidence: stale`. Pages without `lastRetrieved` are not flagged (absence ≠ stale). Skip silently if SCHEMA opted out of decay metadata. |
+| `OPEN-CONFLICT` | `ls wiki/conflicts/*.md`; for each, read frontmatter; flag every page with `status: open`. One issue per open conflict. Skip silently if the `conflict` kind isn't enabled in SCHEMA. |
+| `INLINE-CONTRADICTION-RECURRING` | grep `> ⚠ contradicted by` markers across all wiki pages; group by the subject page (the page being contradicted). Flag any subject with ≥2 inline markers — suggest promoting to a `wiki/conflicts/<slug>.md` page. Skip silently if the `conflict` kind isn't enabled in SCHEMA. |
 | `SCHEMA-DRIFT` | read SCHEMA's "Page kinds", "Entity types", "Source kinds" sections. Walk every page; flag any whose `kind` isn't in SCHEMA's page-kinds list, whose `entityType` isn't in SCHEMA's entity-types list, or whose `sourceType` isn't in SCHEMA's source-kinds list. Also flag pages missing the required frontmatter fields for their kind. |
 | `ORPHAN` | for each wiki page, grep all other wiki pages for `[[wiki/<that-page-without-ext>]]`. Exclude `index.md` and `log.md` from the inbound counters — those are catalogs, not content connections. Zero hits = orphan. Synthesis pages aren't expected to have backlinks (they're terminal); skip them unless the user asked for full mode. |
 | `MISSING-PAGE` | extract entity/concept names from page titles and from claim text (capitalized noun phrases is a good-enough heuristic); count occurrences across pages; flag any name with ≥3 occurrences and no matching `wiki/entities/<slug>.md` or `wiki/concepts/<slug>.md`. **Stop-list — never flag**: section header tokens (`Claims`, `Key`, `Related`, `Open`, `Activity`, `Sources`, `Entities`, `Concepts`, `Synthesis`, `Why`, `How`, `What`, `When`, `Output`, `Input`, `Setup`, `Install`, `Note`, `TL`) and bare technical terms (`HTML`, `CSS`, `JS`, `JSON`, `YAML`, `README`, `API`, `URL`, `URI`, `SVG`, `PDF`, `PNG`, `JPG`, `Grid`). |
@@ -450,9 +460,9 @@ Skip 8 and 9 unless the user explicitly asks for them, or unless 1–7 produced 
 
 **Severity:**
 
-- `error` — `BROKEN-LINK`, `INDEX-DRIFT`. The vault is structurally inconsistent; future ingests/queries will misbehave.
-- `warn` — `STALE-SOURCE`, `SCHEMA-DRIFT`, `CONTRADICTION`. Content or structure is suspect.
-- `info` — `ORPHAN`, `MISSING-PAGE`, `UNCITED-CLAIM`, `RULE-DRIFT`. Vault is healthy, just thin, sloppy, or stale-against-schema in spots.
+- `error` — `BROKEN-LINK`, `INDEX-DRIFT`, `BROKEN-SUPERSESSION`. The vault is structurally inconsistent; future ingests/queries will misbehave.
+- `warn` — `STALE-SOURCE`, `STALE-PAGE`, `SCHEMA-DRIFT`, `CONTRADICTION`. Content or structure is suspect.
+- `info` — `OPEN-CONFLICT`, `INLINE-CONTRADICTION-RECURRING`, `ORPHAN`, `MISSING-PAGE`, `UNCITED-CLAIM`, `RULE-DRIFT`. Vault is healthy, just thin, sloppy, or stale-against-schema in spots.
 
 **Issue IDs** — assign sequential IDs per kind within a single lint run: `INDEX-DRIFT-1`, `INDEX-DRIFT-2`, `BROKEN-LINK-1`, … This lets the user say "fix BROKEN-LINK-3 and ORPHAN-1" in a follow-up turn.
 
@@ -482,7 +492,11 @@ Health buckets: `clean` (0 errors, 0 warns), `healthy` (0 errors, ≤3 warns), `
 | `INDEX-DRIFT` (page on disk, not in index) | Append `- [[wiki/<path>]] — <one-line summary>` to `index.md` under the matching kind group. |
 | `INDEX-DRIFT` (index entry, missing page) | Remove the line from `index.md` (the page was deleted), or create the page. |
 | `BROKEN-LINK` | Rename to closest existing slug, or remove the link, or create the missing page. |
+| `BROKEN-SUPERSESSION` | Fix the path (rename, typo); or update the bidirectional pointer on the partner page; or remove the dangling `supersededBy`/`supersedes` field if the partner was deleted. |
 | `STALE-SOURCE` | Re-ingest the source: `/memory-graph:graph-ingest <raw-path>`. |
+| `STALE-PAGE` | Re-read the source(s) and either re-confirm (bumps `lastRetrieved`, optionally promote to `verified`) or supersede with a `wiki/decisions/<slug>` if the page's claim no longer holds. |
+| `OPEN-CONFLICT` | Decide the conflict: change `status: accepted` (both true in context — document the dimension), `status: resolved` and add `resolvedBy: decisions/<slug>`, or merge by superseding the losing claim. |
+| `INLINE-CONTRADICTION-RECURRING` | Promote to a conflict page: create `wiki/conflicts/<slug>.md` summarizing the recurring disagreement; preserve the inline markers as breadcrumbs. |
 | `SCHEMA-DRIFT` | Either update the page's frontmatter to match SCHEMA, or amend SCHEMA to permit the variant (and append a `schema-update` log entry). |
 | `ORPHAN` | Either link this page from somewhere it belongs, or delete it. |
 | `MISSING-PAGE` | Create `wiki/entities/<slug>.md` (or `concepts/`), seed it with one cited claim. |
@@ -722,6 +736,8 @@ Vault state: 18 wiki pages across all kinds. Two entity pages were renamed last 
 **Step 6 — UNCITED-CLAIM.** Walk claim bullets across entity/concept/synthesis pages. Six bullets without inline links or `^[raw:…]` anchors. → `UNCITED-CLAIM-1` … `UNCITED-CLAIM-6`.
 
 **Step 7 — CONTRADICTION.** Skip — total issues so far is already 14, well over the threshold to defer the heavy check. Tell the user.
+
+> When SCHEMA enables decay metadata or the `conflict` page kind, the new checks (`BROKEN-SUPERSESSION`, `STALE-PAGE`, `OPEN-CONFLICT`, `INLINE-CONTRADICTION-RECURRING`) run in their tier-appropriate slots — same output shape, different table headers. The threshold rule applies to the whole pass: skip `CONTRADICTION` and `RULE-DRIFT` once 1–11 produce ≥10 issues.
 
 **Output:**
 
