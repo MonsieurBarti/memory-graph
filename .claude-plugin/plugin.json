@@ -1,6 +1,6 @@
 {
 	"name": "memory-graph",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Structured knowledge wiki on disk: LLM-maintained interlinked markdown vault that compounds over time. Karpathy LLM Knowledge Base pattern.",
 	"author": {
 		"name": "The Forge Flow",
