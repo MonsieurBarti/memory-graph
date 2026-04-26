@@ -1,6 +1,6 @@
 ---
 name: wiki
-description: Maintain and consult a structured knowledge wiki on disk. Use when the user adds research material to ingest, asks a question that should be answered from accumulated knowledge rather than re-derived, or asks for a vault health check. Operates on a Karpathy-style raw/wiki/SCHEMA layout, with two vaults (global + per-project) under ~/.memory-graph/.
+description: Maintain and consult a structured knowledge wiki on disk. PROACTIVELY invoke whenever the user shares a URL or file with lasting value, asks a question that should be answered from accumulated knowledge rather than re-derived, mentions an existing vault entity with a new substantive claim, or reaches a load-bearing decision worth filing. Also invoked explicitly via /graph-init, /graph-ingest, /graph-query, /graph-lint, /graph-archive. Operates on a Karpathy-style raw/wiki/SCHEMA layout, with two vaults (global + per-project) under ~/.memory-graph/.
 license: MIT
 ---
 
@@ -152,12 +152,14 @@ Default groupings are flat by kind (`## Sources`, `## Entities`, `## Concepts`, 
 ### Log entry format — `wiki/log.md`
 Append-only. One H2 per event so `grep "^## \[" log.md` works.
 ```markdown
-## [YYYY-MM-DD] <action> | <title>
+## [YYYY-MM-DD] <action> | <title> [auto|manual]
 - created: …
 - updated: …
 - contradiction raised on …: …
 ```
-Actions: `init`, `ingest`, `query`, `lint`, `archive`.
+Actions: `init`, `ingest`, `query`, `lint`, `archive`, `schema-update`.
+
+**Provenance marker** — append `[auto]` for proactive ingests (agent decided to file based on the "Proactive ingest" rules below) or `[manual]` for user-triggered slash-command invocations. Lets you grep `[auto]` to audit / roll back if the agent over-files. Older log entries written before this convention may lack the marker — that's fine; don't retroactively edit history.
 
 ### Anchor format — pointing wiki claims back to the raw
 - `^[raw:§<heading>]` — section heading
@@ -377,6 +379,57 @@ cp -a ~/.memory-graph-archive/<vault-slug>/<label>-YYYYMMDD/. ~/.memory-graph/<v
 ```
 
 If the user wants to skip the auto-snapshot in step 1, say so but don't argue.
+
+## Proactive ingest
+
+Beyond explicit slash commands, you may auto-invoke this skill when natural triggers arise. **Be conservative.** Ask once before the first auto-action of a session; trust the user's answer for the rest of the session.
+
+### Auto-triggers
+
+Fire the relevant operation when:
+
+- **The user shares a URL or file with lasting value** in their message — a research article, a paper, a README, a docs page, a downloaded PDF, a transcript, an internal doc path. Propose ingest. *Not triggered by:* transient links (Slack messages, ephemeral chat URLs, image hosts), file paths the user is just navigating to, or anything the user pastes for a one-off purpose.
+
+- **An existing vault entity is mentioned with a new substantive claim** in the conversation — e.g. user says "actually visual-explainer also supports X". Read `wiki/index.md` (cheap), confirm the entity exists, then propose updating that entity's Claims section with the new fact, citing the conversation turn or any external source the user provided.
+
+- **A question's answer would be lost without filing** — decision-shaped ("should we use X or Y?"), methodology-shaped ("how do I structure X?"), comparison-shaped ("X vs Y"). After delivering the synthesis, propose `file this` so it lands in `wiki/synthesis/`.
+
+### Anti-triggers — do NOT auto-ingest
+
+- **No vault exists** for the active scope → mention `/graph-init` at most once, then drop it.
+- **Ephemeral content** — status checks, quick lookups, brainstorming with no citable origin.
+- **Sensitive content** — anything resembling credentials, `.env` values, API keys, tokens, internal URLs the user wouldn't want logged. Refuse explicitly and tell the user.
+- **The user is mid-task** on something unrelated → finish their task first; surface the auto-opportunity at a natural break (or skip it).
+- **The active source-page count for this single user share would exceed ~5 entities** → ask first ("this'll create N pages — proceed?"). Big batch ingests deserve a confirm even if normal auto-mode is on.
+
+### First-action-of-session confirm
+
+The first time a trigger fires in a session, ask once:
+
+> I noticed you shared `<url-or-file>`. Want me to file it in the project memory-graph vault, and continue auto-filing similar shares this session?
+
+- If yes (or any affirmative): proceed silently for the rest of the session, with a one-line notification per write (see below).
+- If no: drop auto-ingest for the rest of the session. Don't re-ask. The user can re-enable by saying "start auto-ingesting again" or by using `/graph-ingest` explicitly.
+
+### Notification per write
+
+After each auto-write, emit one short line — never bury it in prose:
+
+> Filed as `wiki/sources/<slug>`. Updated entities: `entities/upstreams/foo`. Marked `[auto]` in log.
+
+The user should be able to spot every auto-write at a glance.
+
+### Stop word
+
+If the user says "stop auto-ingesting", "don't file this", "no auto", "stop filing", or anything similar, halt auto-mode for the session and confirm:
+
+> Auto-ingest off for this session. Use `/graph-ingest` to file manually.
+
+Don't re-ask. Don't get clever. Honor the stop.
+
+### Provenance in the log
+
+Every auto-ingest log entry gets `[auto]`; every user-triggered ingest gets `[manual]`. See "Log entry format" above. Makes auto-vs-manual greppable and selectively reversible.
 
 ## Vault routing
 
