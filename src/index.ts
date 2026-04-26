@@ -8,6 +8,7 @@
 // answer directly from file IO.
 
 import { graphArchiveCommand } from "./commands/graph-archive.js";
+import { graphConsolidateCommand } from "./commands/graph-consolidate.js";
 import { graphIngestCommand } from "./commands/graph-ingest.js";
 import { graphInitCommand } from "./commands/graph-init.js";
 import { graphLintCommand } from "./commands/graph-lint.js";
@@ -21,11 +22,13 @@ export default function memoryGraphExtension(pi: PiApi): void {
 	pi.registerCommand("graph-ingest", graphIngestCommand(pi));
 	pi.registerCommand("graph-query", graphQueryCommand(pi));
 	pi.registerCommand("graph-lint", graphLintCommand(pi));
+	pi.registerCommand("graph-consolidate", graphConsolidateCommand(pi));
 	pi.registerCommand("graph-archive", graphArchiveCommand(pi));
 }
 
 export {
 	graphArchiveCommand,
+	graphConsolidateCommand,
 	graphIngestCommand,
 	graphInitCommand,
 	graphLintCommand,

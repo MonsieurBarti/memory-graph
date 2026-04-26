@@ -597,6 +597,65 @@ cp -a ~/.memory-graph-archive/<vault-slug>/<label>-YYYYMMDD/. ~/.memory-graph/<v
 
 If the user wants to skip the auto-snapshot in step 1, say so but don't argue.
 
+### Consolidate
+Run only when explicitly asked via `/graph-consolidate`. Heavy: walks frontmatter on every page, then reads bodies for near-duplicate suspects. **Report-only — never mutates a wiki page.** The only write is the log entry at the end.
+
+Hippo-memory's "sleep" pass, ported as a manual command outside the chat loop. The lessons from `hippo-memory-pi` apply directly: sleep that runs automatically in-session is what makes a memory system unscalable. Manual + report-only keeps the same surface value without the perf trap.
+
+**Order of operations:**
+
+1. **Stale-page sweep** (frontmatter walk only). For each page with `lastRetrieved` set, flag if `now - lastRetrieved > 3 × halfLifeDays` AND `confidence != verified`. Group by kind. Skip silently if SCHEMA opted out of decay metadata.
+
+2. **Near-duplicate sweep** (heuristic, intentionally narrow). For each pair of pages of the same `kind`, count signals:
+   - Title Jaccard similarity ≥0.7 over title tokens after stopword removal.
+   - Slugs share a kebab-case stem (e.g. `index-first-retrieval`, `index-first-retrieval-2`).
+   - Bodies share ≥3 of the same `[[wikilinks]]`.
+
+   Emit only candidates that match **≥2 of the three signals** — keeps false positives low. Group candidates into clusters. Skip the entire sweep if the vault has <20 pages of a given kind (signal-to-noise too low).
+
+3. **Open-conflict roll-up.** List every `wiki/conflicts/*.md` with `status: open`. Show subject, age (`now - raisedAt`), and the two pages it bridges. Skip silently if the `conflict` kind isn't enabled.
+
+**Output format** — three top-level markdown sections:
+
+```markdown
+## Stale pages — N total
+
+| Kind | Slug | Age | Last retrieved | Suggested action |
+|---|---|---|---|---|
+| concept | index-first-retrieval | 24d (3.4× half-life) | 2026-04-02 | Re-confirm by re-reading sources, or supersede with a decision. |
+
+## Near-duplicates — N clusters
+
+| Cluster | Pages | Overlap signals | Suggested merge target |
+|---|---|---|---|
+| 1 | concepts/index-first-retrieval, concepts/index-first-retrieval-2 | title (0.82), slug-stem, 3 shared links | concepts/index-first-retrieval (higher retrievalCount) |
+
+## Open conflicts — N total
+
+| Slug | Subject | Age | Between | Suggested action |
+|---|---|---|---|---|
+| 1 | conflicts/sqlite-vs-fts | SQLite vs FTS5 for vault search | 12d | sources/sqlite-tradeoffs ↔ sources/fts5-bench | Decide (write decisions/<slug>), or accept (mark `status: accepted`). |
+
+**Consolidate summary:** N stale, N duplicate clusters, N open conflicts. Suggested next: …
+```
+
+End with a one-line topline pointing the user at the highest-value next action. Examples:
+- "Resolve the 2 oldest open conflicts first — they block downstream supersession."
+- "Re-confirm the 3 stale `verified`-candidate pages before re-evaluating duplicates."
+- "Vault is healthy. Next consolidate suggested in ~30 days."
+
+**Discipline:**
+- Read-only. Never edits a page. The only write is the log entry below.
+- Never proposes auto-deletion. Always proposes merge-with-target or supersede.
+- If a stale page is `kind: decision` and `status: superseded`, treat as expected; do not flag.
+- The user reviews the report and decides what (if anything) to fix manually.
+
+**Log entry:**
+
+```markdown
+## [YYYY-MM-DD] consolidate | counts: 12 stale / 3 dup-clusters / 2 open-conflicts
+```
+
 ## Proactive ingest
 
 Beyond explicit slash commands, you may auto-invoke this skill when natural triggers arise. **Be conservative.** Ask once before the first auto-action of a session; trust the user's answer for the rest of the session.
