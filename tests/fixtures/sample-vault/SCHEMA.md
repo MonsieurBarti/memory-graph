@@ -30,6 +30,9 @@ Reference fixture for the memory-graph plugin — exercises every page kind and 
 - `source` 30d, `entity` 7d, `concept` 7d, `synthesis` 7d, `decision` 90d, `conflict` 7d.
 - Pages tagged `error` auto-bump to 30d.
 
+## Related paths
+Coding-shaped vault. Entity / concept / decision / conflict pages may carry `relatedPaths: [...]` listing the file paths each page is "about." Trailing-slash entries match a directory; globs (`**`, `*`) work per shell semantics. Enables git-aware consolidation in `/graph-consolidate` and the `RELATEDPATHS-MISSING` lint check.
+
 ## Contradiction marker
 ```markdown
 > ⚠ contradicted by [[wiki/sources/<slug>]]:

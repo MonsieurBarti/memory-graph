@@ -93,6 +93,8 @@ halfLifeDays: 7
 lastRetrieved: YYYY-MM-DD
 retrievalCount: 0
 tags: []
+# Optional code-path linkage — see "Related paths and git-awareness" below.
+relatedPaths: []                 # e.g. [src/auth/, src/middleware/auth.ts]
 ---
 
 # <name>
@@ -119,6 +121,8 @@ halfLifeDays: 7
 lastRetrieved: YYYY-MM-DD
 retrievalCount: 0
 tags: []
+# Optional code-path linkage — see "Related paths and git-awareness" below.
+relatedPaths: []
 ---
 
 # <concept name>
@@ -182,6 +186,8 @@ halfLifeDays: 90
 lastRetrieved: YYYY-MM-DD
 retrievalCount: 0
 tags: []
+# Optional code-path linkage — see "Related paths and git-awareness" below.
+relatedPaths: []
 ---
 
 # <decision in one line>
@@ -228,6 +234,8 @@ halfLifeDays: 7
 lastRetrieved: YYYY-MM-DD
 retrievalCount: 0
 tags: []
+# Optional code-path linkage — see "Related paths and git-awareness" below.
+relatedPaths: []
 ---
 
 # <one-line summary>
@@ -352,6 +360,33 @@ A page with `tags: [error]` (or any tag SCHEMA designates as sticky) auto-bumps 
 
 If SCHEMA omits the "Confidence tiers" and "Half-lives" sections, treat all decay machinery as opt-out: don't add fields to new pages, don't surface staleness, don't compute `3 × halfLifeDays`. The vault has chosen to skip this.
 
+### Related paths and git-awareness
+
+Opt-in (SCHEMA must declare it). For coding-shaped vaults, entity / concept / decision / conflict pages may carry an optional `relatedPaths: [...]` frontmatter listing the file paths a page is "about." Borrowed from VALORA.ai's memory model.
+
+Format:
+```yaml
+relatedPaths:
+  - src/auth/middleware.ts
+  - src/auth/                     # trailing slash = directory; matches descendants
+  - tests/auth/**                 # globs allowed
+```
+
+What it enables:
+
+- **Git-aware consolidation** (Phase 5 `/graph-consolidate` extension): when run inside a git repo, the consolidate sweep reads `git log --since=<last-consolidate-date> --name-only` and surfaces a fourth report section listing pages whose `relatedPaths` overlap with changed files. Suggested action: re-verify or supersede. Still report-only — never auto-mutates frontmatter.
+- **Query traversal**: agent answering "what do I know about `src/auth/`" can grep `relatedPaths:` across the index-pointed pages without opening every body.
+- **Lint coverage**: the optional `RELATEDPATHS-MISSING` lint check flags pages that mention code paths in body without listing them in `relatedPaths`.
+
+What it does **not** do:
+- No per-turn hook reads or mutates `relatedPaths` automatically.
+- No automatic invalidation. Code changing ⇒ page becomes a *consolidate suggestion*, not an auto-decay.
+- No watchers, no daemon, no git hook integration.
+
+If SCHEMA opts out, omit the field on new pages and skip git-awareness in `/graph-consolidate`. The vault is path-agnostic by default.
+
+Path matching is conservative: literal paths match exact files; trailing-slash entries match the directory and its descendants; glob entries (`**`, `*`) match per standard shell semantics. Don't try to be clever — if a path pattern doesn't match what the user expected, they'll add a more explicit entry.
+
 ### Contradiction marker
 When new evidence contradicts an existing claim, add this block beneath the claim — never silently rewrite:
 ```markdown
@@ -474,12 +509,13 @@ Run only when explicitly asked. Heavy by design — this is the operation that b
 9. **Orphans** (medium — grep every page for backlinks to every other page)
 10. **Missing pages** (medium — count name occurrences across pages)
 11. **Uncited claims** (medium — heuristic per page)
-12. **Contradictions** (heavy — semantic, requires reading content)
-13. **Rule drift** (heavy — semantic, requires comparing pages against SCHEMA workflows/rules)
+12. **Relatedpaths-missing** (medium — regex-scan page bodies for code path patterns and cross-check against `relatedPaths` frontmatter)
+13. **Contradictions** (heavy — semantic, requires reading content)
+14. **Rule drift** (heavy — semantic, requires comparing pages against SCHEMA workflows/rules)
 
-Skip 12 and 13 unless the user explicitly asks for them, or unless 1–11 produced fewer than ~10 issues.
+Skip 13 and 14 unless the user explicitly asks for them, or unless 1–12 produced fewer than ~10 issues.
 
-Checks 3, 5, 6, and 8 only run when their underlying SCHEMA features are enabled (decay metadata for 3+5, `conflict` page kind for 6, both for 8). When SCHEMA opts out, the check is a no-op.
+Checks 3, 5, 6, 8, and 12 only run when their underlying SCHEMA features are enabled (decay metadata for 3+5, `conflict` page kind for 6, both for 8, `relatedPaths` for 12). When SCHEMA opts out, the check is a no-op.
 
 **Per-issue detection algorithm:**
 
@@ -492,6 +528,7 @@ Checks 3, 5, 6, and 8 only run when their underlying SCHEMA features are enabled
 | `STALE-PAGE` | walk frontmatter; for each page with `lastRetrieved` set: flag if `now - lastRetrieved > 3 × halfLifeDays` AND `confidence != verified`. Always flag pages with `confidence: stale`. Pages without `lastRetrieved` are not flagged (absence ≠ stale). Skip silently if SCHEMA opted out of decay metadata. |
 | `OPEN-CONFLICT` | `ls wiki/conflicts/*.md`; for each, read frontmatter; flag every page with `status: open`. One issue per open conflict. Skip silently if the `conflict` kind isn't enabled in SCHEMA. |
 | `INLINE-CONTRADICTION-RECURRING` | grep `> ⚠ contradicted by` markers across all wiki pages; group by the subject page (the page being contradicted). Flag any subject with ≥2 inline markers — suggest promoting to a `wiki/conflicts/<slug>.md` page. Skip silently if the `conflict` kind isn't enabled in SCHEMA. |
+| `RELATEDPATHS-MISSING` | for each entity/concept/decision/conflict page with `relatedPaths` enabled (frontmatter present, even if empty), regex-scan the body for code-path patterns: `\b(?:src\|lib\|tests\|app\|pages\|components\|hooks\|utils\|services\|api)\/[\w./-]+\.[a-z]+\b` (extensible via SCHEMA). Flag pages whose body mentions ≥2 distinct paths that don't appear (literal or by directory-prefix match) in `relatedPaths`. Skip silently if `relatedPaths` is opted out in SCHEMA, or if a page omits the field entirely. |
 | `SCHEMA-DRIFT` | read SCHEMA's "Page kinds", "Entity types", "Source kinds" sections. Walk every page; flag any whose `kind` isn't in SCHEMA's page-kinds list, whose `entityType` isn't in SCHEMA's entity-types list, or whose `sourceType` isn't in SCHEMA's source-kinds list. Also flag pages missing the required frontmatter fields for their kind. |
 | `ORPHAN` | for each wiki page, grep all other wiki pages for `[[wiki/<that-page-without-ext>]]`. Exclude `index.md` and `log.md` from the inbound counters — those are catalogs, not content connections. Zero hits = orphan. Synthesis pages aren't expected to have backlinks (they're terminal); skip them unless the user asked for full mode. |
 | `MISSING-PAGE` | extract entity/concept names from page titles and from claim text (capitalized noun phrases is a good-enough heuristic); count occurrences across pages; flag any name with ≥3 occurrences and no matching `wiki/entities/<slug>.md` or `wiki/concepts/<slug>.md`. **Stop-list — never flag**: section header tokens (`Claims`, `Key`, `Related`, `Open`, `Activity`, `Sources`, `Entities`, `Concepts`, `Synthesis`, `Why`, `How`, `What`, `When`, `Output`, `Input`, `Setup`, `Install`, `Note`, `TL`) and bare technical terms (`HTML`, `CSS`, `JS`, `JSON`, `YAML`, `README`, `API`, `URL`, `URI`, `SVG`, `PDF`, `PNG`, `JPG`, `Grid`). |
@@ -503,7 +540,7 @@ Checks 3, 5, 6, and 8 only run when their underlying SCHEMA features are enabled
 
 - `error` — `BROKEN-LINK`, `INDEX-DRIFT`, `BROKEN-SUPERSESSION`. The vault is structurally inconsistent; future ingests/queries will misbehave.
 - `warn` — `STALE-SOURCE`, `STALE-PAGE`, `SCHEMA-DRIFT`, `CONTRADICTION`. Content or structure is suspect.
-- `info` — `OPEN-CONFLICT`, `INLINE-CONTRADICTION-RECURRING`, `ORPHAN`, `MISSING-PAGE`, `UNCITED-CLAIM`, `RULE-DRIFT`. Vault is healthy, just thin, sloppy, or stale-against-schema in spots.
+- `info` — `OPEN-CONFLICT`, `INLINE-CONTRADICTION-RECURRING`, `ORPHAN`, `MISSING-PAGE`, `UNCITED-CLAIM`, `RELATEDPATHS-MISSING`, `RULE-DRIFT`. Vault is healthy, just thin, sloppy, or stale-against-schema in spots.
 
 **Issue IDs** — assign sequential IDs per kind within a single lint run: `INDEX-DRIFT-1`, `INDEX-DRIFT-2`, `BROKEN-LINK-1`, … This lets the user say "fix BROKEN-LINK-3 and ORPHAN-1" in a follow-up turn.
 
@@ -538,6 +575,7 @@ Health buckets: `clean` (0 errors, 0 warns), `healthy` (0 errors, ≤3 warns), `
 | `STALE-PAGE` | Re-read the source(s) and either re-confirm (bumps `lastRetrieved`, optionally promote to `verified`) or supersede with a `wiki/decisions/<slug>` if the page's claim no longer holds. |
 | `OPEN-CONFLICT` | Decide the conflict: change `status: accepted` (both true in context — document the dimension), `status: resolved` and add `resolvedBy: decisions/<slug>`, or merge by superseding the losing claim. |
 | `INLINE-CONTRADICTION-RECURRING` | Promote to a conflict page: create `wiki/conflicts/<slug>.md` summarizing the recurring disagreement; preserve the inline markers as breadcrumbs. |
+| `RELATEDPATHS-MISSING` | Add the mentioned paths to the page's `relatedPaths:` frontmatter list (literal paths or trailing-slash directory entries). If a path was mentioned only incidentally and isn't a real anchor, edit the body to be less code-path-shaped instead. |
 | `SCHEMA-DRIFT` | Either update the page's frontmatter to match SCHEMA, or amend SCHEMA to permit the variant (and append a `schema-update` log entry). |
 | `ORPHAN` | Either link this page from somewhere it belongs, or delete it. |
 | `MISSING-PAGE` | Create `wiki/entities/<slug>.md` (or `concepts/`), seed it with one cited claim. |
@@ -617,7 +655,9 @@ Hippo-memory's "sleep" pass, ported as a manual command outside the chat loop. T
 
 3. **Open-conflict roll-up.** List every `wiki/conflicts/*.md` with `status: open`. Show subject, age (`now - raisedAt`), and the two pages it bridges. Skip silently if the `conflict` kind isn't enabled.
 
-**Output format** — three top-level markdown sections:
+4. **Pages affected by recent code changes** (git-aware, opt-in). If SCHEMA enabled `relatedPaths` AND the cwd is a git repo, find the most recent prior `consolidate` entry in `wiki/log.md`, parse its date (or fall back to "30 days ago" on first run). Run `git log --since=<that-date> --name-only --pretty=format:` to get the set of changed paths. Walk every wiki page; flag any whose `relatedPaths` intersect (literal-path-equality, directory-prefix-match for trailing-slash entries, or glob-match for `**`/`*` entries) with the changed set. Skip silently if not in a git repo, or if SCHEMA opted out of `relatedPaths`.
+
+**Output format** — three or four top-level markdown sections (the fourth only when git-aware):
 
 ```markdown
 ## Stale pages — N total
@@ -638,7 +678,13 @@ Hippo-memory's "sleep" pass, ported as a manual command outside the chat loop. T
 |---|---|---|---|---|
 | 1 | conflicts/sqlite-vs-fts | SQLite vs FTS5 for vault search | 12d | sources/sqlite-tradeoffs ↔ sources/fts5-bench | Decide (write decisions/<slug>), or accept (mark `status: accepted`). |
 
-**Consolidate summary:** N stale, N duplicate clusters, N open conflicts. Suggested next: …
+## Pages affected by recent code changes — N total
+
+| Page | Related paths | Changed files (sample) | Suggested action |
+|---|---|---|---|
+| entities/auth-middleware | src/auth/middleware.ts | src/auth/middleware.ts, src/auth/session.ts | Re-read the file and either re-confirm (bump `lastRetrieved`) or supersede with a decision. |
+
+**Consolidate summary:** N stale, N duplicate clusters, N open conflicts, N path-affected. Suggested next: …
 ```
 
 End with a one-line topline pointing the user at the highest-value next action. Examples:
@@ -655,8 +701,10 @@ End with a one-line topline pointing the user at the highest-value next action. 
 **Log entry:**
 
 ```markdown
-## [YYYY-MM-DD] consolidate | counts: 12 stale / 3 dup-clusters / 2 open-conflicts
+## [YYYY-MM-DD] consolidate | counts: 12 stale / 3 dup-clusters / 2 open-conflicts / 4 path-affected
 ```
+
+The path-affected count is omitted from the entry when the git-aware section was skipped (no SCHEMA opt-in, or not in a git repo). The date in this entry is the timestamp the *next* `/graph-consolidate` will use as the `--since` cutoff for git-awareness.
 
 ## Proactive ingest
 

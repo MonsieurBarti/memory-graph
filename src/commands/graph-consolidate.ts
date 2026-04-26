@@ -21,7 +21,7 @@ export function graphConsolidateCommand(pi: PiApi): CommandDefinition {
 			sendDirective(
 				pi,
 				ctx,
-				`Consolidate the ${target} vault at ${paths.root}. Follow the wiki skill's "Consolidate" procedure under "Three operations": stale-page sweep (frontmatter walk), near-duplicate sweep (≥2 of three signals: title Jaccard ≥0.7, slug-stem match, ≥3 shared wikilinks), open-conflict roll-up. Report findings as three markdown-table sections with a one-line topline. Do NOT mutate any wiki page. Append a "## [YYYY-MM-DD] consolidate | counts: …" entry to wiki/log.md — that is the only write the command performs.`,
+				`Consolidate the ${target} vault at ${paths.root}. Follow the wiki skill's "Consolidate" procedure under "Three operations": stale-page sweep (frontmatter walk), near-duplicate sweep (≥2 of three signals: title Jaccard ≥0.7, slug-stem match, ≥3 shared wikilinks), open-conflict roll-up, and — if SCHEMA enables relatedPaths AND the cwd is a git repo — a fourth path-affected sweep using "git log --since=<date-of-last-consolidate-entry> --name-only" cross-referenced against pages' relatedPaths frontmatter. Report findings as three or four markdown-table sections with a one-line topline. Do NOT mutate any wiki page. Append a "## [YYYY-MM-DD] consolidate | counts: …" entry to wiki/log.md — that is the only write the command performs.`,
 			);
 		},
 	};

@@ -141,7 +141,7 @@ Seven slash commands, identical surface across both runtimes:
 | `graph-ingest <path-or-url> [--global]` | Ingest a source per the wiki SKILL's procedure |
 | `graph-query <question> [--global]` | Index-first retrieval with citations; optionally `file this` |
 | `graph-lint [--global]` | Run the cheap-first lint pass (up to 13 checks; depends on enabled SCHEMA features) |
-| `graph-consolidate [--global]` | Stale-page sweep + near-duplicate sweep + open-conflict roll-up (report-only) |
+| `graph-consolidate [--global]` | Stale-page sweep + near-duplicate sweep + open-conflict roll-up + (in coding vaults) git-aware path-affected sweep — all report-only |
 | `graph-archive [label] [--global \| --all]` | Snapshot to parallel tree; `--list` shows existing snapshots |
 
 The `wiki` skill auto-fires beyond explicit commands too — see "Proactive ingest" inside the SKILL for triggers, anti-triggers, and the first-confirm-then-trust flow.

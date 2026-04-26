@@ -11,6 +11,10 @@ halfLifeDays: 90
 lastRetrieved: 2026-04-26
 retrievalCount: 4
 tags: []
+relatedPaths:
+  - skills/wiki/SKILL.md
+  - commands/
+  - src/
 ---
 
 # memory-graph v1 ships markdown-only — no code, no MCP, no embeddings
