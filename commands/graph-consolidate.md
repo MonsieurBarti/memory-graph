@@ -9,7 +9,7 @@ Consolidate the memory-graph vault. **Report-only. Never mutates a wiki page.**
 2. Resolve the vault root:
    - project: `~/.memory-graph/<sanitized-cwd>/` (cwd with `/` → `-`)
    - global: `~/.memory-graph/global/`
-   If `SCHEMA.md` is missing, stop.
+   If `SCHEMA.md` is missing, stop and tell the user: "No `<project|global>` vault yet. Run `/memory-graph:graph-init` to bootstrap one (or `/memory-graph:graph-init --global` for the machine-wide vault)."
 3. Read `<vault-root>/SCHEMA.md` — note which features are enabled (decay metadata, `conflict` kind). Checks tied to disabled features are no-ops.
 4. Read the bundled skill at `skills/wiki/SKILL.md` — the "Consolidate" section under "Three operations".
 5. Execute the consolidate operation exactly as specified in the SKILL: stale-page sweep, near-duplicate sweep, open-conflict roll-up. Produce a markdown report with three sections and a one-line topline.

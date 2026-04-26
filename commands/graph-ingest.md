@@ -11,7 +11,7 @@ Ingest the source described in `$ARGUMENTS` into the wiki.
 2. Resolve the vault root:
    - project: `~/.memory-graph/<sanitized-cwd>/` (cwd with `/` → `-`)
    - global: `~/.memory-graph/global/`
-   If `SCHEMA.md` is missing, stop and tell the user to run `/memory-graph:graph-init` (with `--global` if applicable).
+   If `SCHEMA.md` is missing, stop and tell the user: "No `<project|global>` vault yet. Run `/memory-graph:graph-init` to bootstrap one (or `/memory-graph:graph-init --global` for the machine-wide vault), then re-run this ingest."
 3. **Read `<vault-root>/SCHEMA.md` before doing anything else.** It overrides this command if it specifies different page kinds, slug patterns, frontmatter fields, or workflows.
 4. Read the bundled skill at `skills/wiki/SKILL.md` for the ingest discipline, page conventions, and the worked example.
 5. Bring the input into `<vault-root>/raw/`:

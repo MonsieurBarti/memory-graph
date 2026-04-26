@@ -11,7 +11,7 @@ Answer the question in `$ARGUMENTS` using the vault.
 2. Resolve the vault root:
    - project: `~/.memory-graph/<sanitized-cwd>/` (cwd with `/` → `-`)
    - global: `~/.memory-graph/global/`
-   If `SCHEMA.md` is missing, stop and say which vault is uninitialized.
+   If `SCHEMA.md` is missing, stop and tell the user: "No `<project|global>` vault yet. Run `/memory-graph:graph-init` to bootstrap one (or `/memory-graph:graph-init --global` for the machine-wide vault), then re-run this query."
 3. **Read `<vault-root>/SCHEMA.md`** for page kinds and any custom query workflows.
 4. Read the bundled skill at `skills/wiki/SKILL.md` for the query discipline, page-selection order, citation format, and the worked query example.
 5. Execute the query operation exactly as specified in the SKILL's "Query" section: read `index.md` (including any `## ⚠ Open conflicts` and `## Invariants` top sections), pick pages in synthesis → concept → entity → decision → source order, traverse typed-edge `{edge-type: target}` suffixes for ≤3 extra pages on comparative/traversal-shaped questions, cap at ~10 pages by default, read only those, synthesize with inline `[[wikilinks]]` and confidence-aware framing (qualify `inferred`/`stale` claims, lead with `verified`), close with the structured Vault / Sources read / Suggested follow-ups footer.

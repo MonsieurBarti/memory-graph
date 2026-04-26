@@ -116,6 +116,20 @@ pi -e /path/to/memory-graph
 
 Then reload pi with `/reload`.
 
+### First run
+
+After install, your vault doesn't exist yet — every command other than `graph-status` will tell you so and point at `graph-init`. The minimum-viable first session:
+
+```bash
+/memory-graph:graph-init                                  # interview, ~5 minutes
+/memory-graph:graph-ingest <some/source.md|https://…>     # file your first source
+/memory-graph:graph-query "what do I know about <topic>?"  # see it work
+```
+
+`graph-init` interviews you on scope, source kinds, entity types, workflows, optional decay tracking, and optional decision/conflict pages. It writes a `SCHEMA.md` reflecting your answers and bootstraps the directory structure under `~/.memory-graph/<slug>/`. If `SCHEMA.md` already exists, it stops without overwriting — edit `SCHEMA.md` directly when the schema needs to evolve, or move the existing vault aside if you want to start over.
+
+If you want a global vault (cross-project knowledge), add `--global` to `graph-init` and to the queries you want answered against it. The two vaults stay separate; there is no auto-merge.
+
 ## 🎯 Commands
 
 Seven slash commands, identical surface across both runtimes:
