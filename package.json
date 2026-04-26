@@ -1,6 +1,6 @@
 {
   "name": "@the-forge-flow/memory-graph",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Structured knowledge wiki: Claude Code plugin AND pi-coding-agent extension from one repo. LLM-maintained interlinked markdown vault that compounds over time.",
   "type": "module",
   "main": "./dist/index.js",
