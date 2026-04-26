@@ -1,6 +1,14 @@
 {
 	"name": "memory-graph",
-	"description": "Structured knowledge wiki for Claude Code. LLM-maintained, interlinked markdown vault that compounds over time. Karpathy LLM Knowledge Base pattern: raw sources → wiki → schema, with ingest / query / lint operations.",
 	"version": "0.0.0",
-	"author": { "name": "monsieurbarti" }
+	"description": "Structured knowledge wiki on disk: LLM-maintained interlinked markdown vault that compounds over time. Karpathy LLM Knowledge Base pattern.",
+	"author": {
+		"name": "The Forge Flow",
+		"url": "https://github.com/MonsieurBarti"
+	},
+	"license": "MIT",
+	"homepage": "https://github.com/MonsieurBarti/memory-graph",
+	"repository": "https://github.com/MonsieurBarti/memory-graph",
+	"keywords": ["memory", "knowledge-base", "second-brain", "obsidian", "wiki", "karpathy"],
+	"skills": ["./skills/"]
 }

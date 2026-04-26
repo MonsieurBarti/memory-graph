@@ -1,0 +1,14 @@
+{
+	"name": "memory-graph",
+	"owner": {
+		"name": "The Forge Flow",
+		"url": "https://github.com/MonsieurBarti"
+	},
+	"plugins": [
+		{
+			"name": "memory-graph",
+			"source": "./",
+			"description": "Structured knowledge wiki: LLM-maintained interlinked markdown vault that compounds over time."
+		}
+	]
+}
