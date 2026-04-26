@@ -168,7 +168,7 @@ A synthesis is not a source — it has no `raw/` counterpart, no `sourceFile`. I
 
 ### Decision pages — `wiki/decisions/<slug>.md`
 
-Opt-in (SCHEMA must list `decision` under "Page kinds"). First-class home for load-bearing decisions with their reasoning, alternatives, and consequences. Slug is a question-as-statement (e.g. `use-sqlite-not-postgres-for-local-vault`); date-prefix if generic.
+**Default-on.** New vaults include the `decision` kind unless the user explicitly opted out (in which case SCHEMA's "Page kinds" omits it and `wiki/decisions/` isn't created). First-class home for load-bearing decisions with their reasoning, alternatives, and consequences. Slug is a question-as-statement (e.g. `use-sqlite-not-postgres-for-local-vault`); date-prefix if generic.
 
 ```markdown
 ---
@@ -216,7 +216,7 @@ When a decision is later overturned, do not delete it — set `status: supersede
 
 ### Conflict pages — `wiki/conflicts/<slug>.md`
 
-Opt-in (SCHEMA must list `conflict` under "Page kinds"). Promotes a recurring contradiction from an inline marker into a navigable page. Created by user confirmation during ingest, never auto-written.
+**Default-on.** New vaults include the `conflict` kind unless the user explicitly opted out. Promotes a recurring contradiction from an inline marker into a navigable page. Created by user confirmation during ingest, never auto-written.
 
 ```markdown
 ---
@@ -326,7 +326,7 @@ Pick whichever is least ambiguous.
 
 ### Confidence tiers and decay
 
-Every page may carry an implicit confidence and freshness signal in its frontmatter. These are defaults — SCHEMA.md may override or opt out entirely (omit the fields and they're ignored).
+**Default-on.** New vaults bootstrapped by `/graph-init` ship with this feature unless the user explicitly opted out. Every page may carry an implicit confidence and freshness signal in its frontmatter; the agent reasons about staleness on read. To disable on a vault, remove the "Confidence tiers" and "Half-lives" sections from `SCHEMA.md` — the absence is treated as opt-out.
 
 **Confidence tiers:**
 
@@ -362,7 +362,7 @@ If SCHEMA omits the "Confidence tiers" and "Half-lives" sections, treat all deca
 
 ### Related paths and git-awareness
 
-Opt-in (SCHEMA must declare it). For coding-shaped vaults, entity / concept / decision / conflict pages may carry an optional `relatedPaths: [...]` frontmatter listing the file paths a page is "about." Borrowed from VALORA.ai's memory model.
+**Default-on.** New vaults bootstrapped by `/graph-init` ship with this feature unless the user explicitly opted out (e.g. a pure-research vault that won't link to code). Entity / concept / decision / conflict pages may carry an optional `relatedPaths: [...]` frontmatter listing the file paths a page is "about." Borrowed from VALORA.ai's memory model. To disable on a vault, remove the "Related paths" section from `SCHEMA.md`.
 
 Format:
 ```yaml

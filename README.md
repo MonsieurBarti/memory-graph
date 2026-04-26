@@ -126,7 +126,7 @@ After install, your vault doesn't exist yet — every command other than `graph-
 /memory-graph:graph-query "what do I know about <topic>?"  # see it work
 ```
 
-`graph-init` interviews you on scope, source kinds, entity types, workflows, optional decay tracking, and optional decision/conflict pages. It writes a `SCHEMA.md` reflecting your answers and bootstraps the directory structure under `~/.memory-graph/<slug>/`. If `SCHEMA.md` already exists, it stops without overwriting — edit `SCHEMA.md` directly when the schema needs to evolve, or move the existing vault aside if you want to start over.
+`graph-init` interviews you on scope, source kinds, entity types, workflows, and any vault-wide invariants. It writes a `SCHEMA.md` reflecting your answers and bootstraps the directory structure under `~/.memory-graph/<slug>/`. **All optional features ship enabled by default** — decay metadata, confidence tiers, decision + conflict page kinds, related-paths + git-aware consolidation. They cost nothing on a vault that doesn't use them. To disable a feature later, remove its section from `SCHEMA.md`. If `SCHEMA.md` already exists, init stops without overwriting — edit it directly when the schema needs to evolve, or move the existing vault aside if you want to start over.
 
 If you want a global vault (cross-project knowledge), add `--global` to `graph-init` and to the queries you want answered against it. The two vaults stay separate; there is no auto-merge.
 
