@@ -16,6 +16,7 @@ Bootstrap a memory-graph vault. **Interactive — sit down with the user. Do not
    - Any workflows that should run on every ingest? (e.g. "always extract one open question per paper", "tag every source with a confidence level", "if it's about a person, also update their `entities/people/<name>.md` timeline")
    - Should pages track freshness (last retrieved, half-life, confidence tiers)? Optional — useful for vaults where information goes out of date (research, infra), less useful for stable reference vaults. If no, skip; if yes, the SCHEMA gets a "Confidence tiers" and "Half-lives" section.
    - Do you want first-class `decision` and `conflict` page kinds? Useful for engineering vaults (decisions live in `wiki/decisions/` with reasoning + alternatives + consequences; conflicts surface contradictions as navigable pages with an `## ⚠ Open conflicts` mirror at the top of the index). Probably overkill for pure research vaults.
+   - Are there any vault-wide invariants the agent should treat as load-bearing context on every query? (e.g. "scope is X", "we use Y not Z", "decisions are owned by team T".) These seed an `## Invariants` section at the top of `wiki/index.md`. Optional — leave empty if nothing comes to mind.
    - Anything else the wiki should always do or never do?
 
    Listen and reflect back briefly between questions. If the user gives short answers, don't push for length — the SCHEMA is meant to evolve, not be finished today.
@@ -28,7 +29,7 @@ Bootstrap a memory-graph vault. **Interactive — sit down with the user. Do not
    - `<vault-root>/wiki/synthesis/` (empty)
    - `<vault-root>/wiki/decisions/` (empty) — only if the user opted into the `decision` kind
    - `<vault-root>/wiki/conflicts/` (empty) — only if the user opted into the `conflict` kind
-   - `<vault-root>/wiki/index.md` — `# Index\n\n_Empty. First entry will appear here after the first ingest._\n`
+   - `<vault-root>/wiki/index.md` — start with `# Index\n\n` followed by an `## Invariants` section seeded with the user's answers (one bullet per invariant, citing the relevant verified page if it exists, otherwise leaving the citation as a placeholder). If the user gave no invariants, omit the section. End with `_Empty. First entry will appear here after the first ingest._\n`.
    - `<vault-root>/wiki/log.md` — `# Log\n\n## [YYYY-MM-DD] init\nVault bootstrapped.\n`
    - `<vault-root>/SCHEMA.md` — see structure below.
 

@@ -248,33 +248,53 @@ What each side claims, in 1–2 sentences each, with [[wikilinks]].
 Conflicts with `status: open` ALSO appear at the top of `wiki/index.md` in a `## ⚠ Open conflicts` section so they're impossible to miss on read.
 
 ### Index line format — `wiki/index.md`
-One line per page, grouped by kind. Newest entries appended within their group.
+One line per page, grouped by kind. Newest entries appended within their group. Lines may carry an optional `{edge-type: target, …}` suffix for typed-graph traversal at query time.
+
 ```markdown
 ## ⚠ Open conflicts
 - [[wiki/conflicts/<slug>]] — between [[<a>]] and [[<b>]] — open since YYYY-MM-DD
+
+## Invariants
+- <load-bearing claim treated as vault-wide context>. [[wiki/<verified-page>]]
 
 ## Sources
 - [[wiki/sources/<slug>]] — <one-line summary>     (sourceType, YYYY-MM-DD)
 
 ## Entities
-- [[wiki/entities/<slug>]] — <role/identity in one line>
+- [[wiki/entities/<slug>]] — <role/identity in one line>     {instance-of: concepts/<slug>}
 
 ## Concepts
-- [[wiki/concepts/<slug>]] — <definition in one line>
+- [[wiki/concepts/<slug>]] — <definition in one line>     {alternative-to: concepts/<other>}
 
 ## Synthesis
-- [[wiki/synthesis/<slug>]] — <question this answers, in one line>
+- [[wiki/synthesis/<slug>]] — <question this answers, in one line>     {derived-from: sources/<slug>, concepts/<slug>}
 
 ## Decisions
-- [[wiki/decisions/<slug>]] — <one-line statement>     (status, YYYY-MM-DD)
+- [[wiki/decisions/<slug>]] — <one-line statement>     (status, YYYY-MM-DD)     {supersedes: decisions/<old-slug>}
 
 ## Conflicts
 - [[wiki/conflicts/<slug>]] — <subject> — status: <open|accepted|resolved>
 ```
 
+**Typed-edge suffix.** Optional. Format: `{edge-type: target, edge-type: target, ...}` after the line's prose. Reserved edge types (extensible via SCHEMA):
+
+| Edge type | Meaning |
+|---|---|
+| `alternative-to` | This page describes an alternative to the target. |
+| `prerequisite-of` | The target should be understood after this. |
+| `supersedes` / `superseded-by` | Mirror of frontmatter `supersedes` / `supersededBy`. |
+| `contradicts` | Points at a `wiki/conflicts/<slug>` page. |
+| `derived-from` | Synthesis links to its constituent pages (mirror of frontmatter). |
+| `instance-of` | Entity is an instance of a concept. |
+| `cites` | Entity/concept points at a source it relies on heavily. |
+
+Suffixes are **optional sidecar metadata**, not the primary navigation — `[[wikilinks]]` in page bodies still carry the load. The suffix lets the query op traverse without opening bodies, which is the GraphRAG-style "edges over similarity" property in pure markdown.
+
 Default groupings are flat by kind (`## Sources`, `## Entities`, `## Concepts`, `## Synthesis`, plus `## Decisions` and `## Conflicts` when those kinds are enabled). If SCHEMA defines sub-types within a kind (e.g. `entities/people/`, `entities/tools/`), sub-divide that kind's group with `###` headers per sub-type. SCHEMA may codify the exact grouping per vault.
 
-The `## ⚠ Open conflicts` section is a **mirror** — entries duplicate what's in `## Conflicts` for `status: open` rows. Duplication is intentional: it puts open conflicts at the top of the file the query op reads first. Resolved/accepted conflicts live only in `## Conflicts`. If the `conflict` kind isn't enabled in SCHEMA, both sections are absent — don't create them.
+**`## ⚠ Open conflicts`** is a **mirror** — entries duplicate what's in `## Conflicts` for `status: open` rows. Duplication is intentional: it puts open conflicts at the top of the file the query op reads first. Resolved/accepted conflicts live only in `## Conflicts`. If the `conflict` kind isn't enabled in SCHEMA, both sections are absent.
+
+**`## Invariants`** is **opt-in**. It holds load-bearing claims drawn from `confidence: verified` pages — vault-wide context the query op should weigh on every query. Populate it via `/graph-init` (the interview asks), via the agent suggesting promotion when a `verified` page's claim is used repeatedly, or by hand. If absent, queries skip the section silently.
 
 ### Log entry format — `wiki/log.md`
 Append-only. One H2 per event so `grep "^## \[" log.md` works.
@@ -378,17 +398,36 @@ The whole point of the vault. Get this right.
 
 **Step 1 — read the index.** Open `wiki/index.md`. It is small and authoritative. If it's huge (>~500 lines), read just the index — do not yet open pages.
 
+The top of the index may contain two special sections, both loaded once with the rest of the index (never via per-turn hooks):
+
+- `## ⚠ Open conflicts` — mirrors `status: open` rows from `## Conflicts`. If your question touches a subject in this list, surface the conflict in the answer.
+- `## Invariants` — load-bearing claims marked `confidence: verified` that should be treated as context for any query in this vault. Read them before picking pages; they may shape the framing of the answer even if no invariant page is opened directly.
+
+Both sections are absent on vaults that didn't opt into them — that's fine.
+
 **Step 2 — pick pages, in this order of preference:**
 1. **Synthesis pages** that match the question — they're already-distilled answers; if a recent synthesis covers the question, cite it and stop.
 2. **Concept pages** named in the question — they're the most concentrated knowledge per token.
 3. **Entity pages** named in the question.
-4. **Source pages** that the above link to — open these only if you need to verify a claim or pull a quote.
+4. **Decision pages** when the question touches a load-bearing choice (only if the kind is enabled).
+5. **Source pages** that the above link to — open these only if you need to verify a claim or pull a quote.
 
 Cap reading at ~10 pages by default. If the question genuinely needs more, say so to the user and ask whether to continue.
 
+**Step 2.5 — traverse typed edges if needed.** If the question is comparative ("X vs Y"), traversal-shaped ("how does X relate to Y"), or your initial picks didn't fully cover the question, scan the index for `{edge-type: target}` suffixes pointing at or from your candidate pages. Add up to ~3 traversed pages to your read set. This is your typed-graph traversal — pure index lookup, no body scan. Stop at one hop unless the user asked for deeper. Skip this step if the index has no `{…}` suffixes.
+
 **Step 3 — read those pages.** Do not scan the whole vault. Do not embed-search. **Index-first is the perf contract.**
 
+**Step 3.5 — bump retrieval metadata.** *Only if SCHEMA enabled decay metadata.* For each page actually used in the synthesis (cited inline in your answer — not pages you opened but didn't cite), update its frontmatter in a single Edit per page:
+
+- `lastRetrieved: <today>`
+- `retrievalCount: <prev + 1>`
+
+Do this in batch at the end of the query. If the page has no `lastRetrieved` field at all, do not add it — the field's absence means SCHEMA opted out. Respect that. This is the only mutation `/graph-query` performs against existing pages, capped at ~10 pages per query.
+
 **Step 4 — synthesize.** Default to markdown prose. Use a table when the question is comparative ("how does X differ from Y"). Use a bulleted list when the question is enumerative ("what are all the …"). Slide decks, diagrams, charts — only on explicit request.
+
+When citing pages, **prefer higher confidence**. If two cited pages disagree, lead with the `verified` claim and surface the alternative. If a cited claim is `inferred` or `stale`, qualify it explicitly: "consistent with…", "as of <date>, observed that…". Do not present `inferred` or `stale` claims as bare facts.
 
 **Step 5 — cite.** Two layers:
 - **Inline `[[wikilinks]]`** adjacent to each claim — never make a claim without an inline link.
