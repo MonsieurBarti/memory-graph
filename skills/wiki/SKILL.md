@@ -429,6 +429,8 @@ Do this in batch at the end of the query. If the page has no `lastRetrieved` fie
 
 When citing pages, **prefer higher confidence**. If two cited pages disagree, lead with the `verified` claim and surface the alternative. If a cited claim is `inferred` or `stale`, qualify it explicitly: "consistent with…", "as of <date>, observed that…". Do not present `inferred` or `stale` claims as bare facts.
 
+When two pages disagree at the same confidence tier, **tie-break by source count**: a claim cited across ≥2 independent sources beats a single-source claim, all else equal. Surface the asymmetry in the synthesis ("two sources confirm X; a single source claims Y").
+
 **Step 5 — cite.** Two layers:
 - **Inline `[[wikilinks]]`** adjacent to each claim — never make a claim without an inline link.
 - **A "Sources read" footer** at the end listing every page you opened (one-line each).
@@ -660,6 +662,16 @@ End with a one-line topline pointing the user at the highest-value next action. 
 
 Beyond explicit slash commands, you may auto-invoke this skill when natural triggers arise. **Be conservative.** Ask once before the first auto-action of a session; trust the user's answer for the rest of the session.
 
+### The calibration heuristic
+
+Before firing any auto-trigger, ask yourself: **"Would the user want to re-derive this in 3 weeks?"**
+
+- *Yes* (they'd want the answer back without the work) → it's vault-shaped. Fire.
+- *No* (they'd shrug and re-Google) → it's ephemeral. Skip.
+- *Ambiguous* → propose, don't auto-write.
+
+This rule beats keyword matching. A "URL" can be a paper worth filing or a Slack permalink worth ignoring. A "decision" can be a load-bearing choice or a one-off keystroke preference. The 3-week test cuts through both.
+
 ### Auto-triggers
 
 Fire the relevant operation when:
@@ -669,6 +681,24 @@ Fire the relevant operation when:
 - **An existing vault entity is mentioned with a new substantive claim** in the conversation — e.g. user says "actually visual-explainer also supports X". Read `wiki/index.md` (cheap), confirm the entity exists, then propose updating that entity's Claims section with the new fact, citing the conversation turn or any external source the user provided.
 
 - **A question's answer would be lost without filing** — decision-shaped ("should we use X or Y?"), methodology-shaped ("how do I structure X?"), comparison-shaped ("X vs Y"). After delivering the synthesis, propose `file this` so it lands in `wiki/synthesis/`.
+
+### Borderline cases — worked
+
+| Situation | Fire? | Why |
+|---|---|---|
+| User pastes `https://gist.github.com/karpathy/...` and says "interesting" | **Yes** | Gist on a substantive topic from a citable author — clearly re-derivable knowledge. |
+| User pastes `https://app.slack.com/archives/.../p1234` | **No** | Slack permalink. Even if the content matters, the URL rots and the convo is private. If the *content* matters, ask the user to paste the substance. |
+| User says "actually I think we should use Postgres for this" | **No** | A working preference, not a recorded decision. If it solidifies — explicit `wiki/decisions/` — propose then. |
+| User says "decided: we're going with Postgres because of FTS5 limits" | **Yes** | Decision-shaped *and* reasoned. Propose a `wiki/decisions/<slug>.md` with the reasoning, after one confirm. |
+| User shares `~/Downloads/screenshot-3.png` while debugging | **No** | Transient artifact. Ingest only if they say "let me file this for the writeup". |
+| User says "X vs Y comparison would be useful" mid-conversation | **No** | Wishlist, not knowledge. Wait for the comparison to actually be derived. |
+| User asks "how does our auth flow work" → you synthesize from 4 vault pages | **Yes (file-back)** | Substantive synthesis worth filing. Propose `file this` after the answer. |
+| User asks "what's the current time" → you answer | **No** | Trivial lookup. No vault shape. |
+| User pastes 800-word internal RFC text | **Yes** | Long-form citable content. Propose ingest with title confirm. |
+| User pastes a single CLI command they ran | **No** | Working state, not knowledge. Unless they say "this is the canonical way", in which case it's methodology-shaped → propose. |
+| URL in a quoted block from someone else's message the user is forwarding | **Ask** | Provenance unclear; one-confirm whether this is "for context" or "to file". |
+
+When in doubt, the Anti-triggers below win over the Auto-triggers above.
 
 ### Anti-triggers — do NOT auto-ingest
 
@@ -928,6 +958,7 @@ snapshot-20260412/   780K   (14 days ago)
 - **Cite every claim.** Inline `[[wikilinks]]`, plus `^[raw:…]` anchors in source pages. Never cite a page you didn't open.
 - **Surface contradictions, never hide them.** When a contradiction recurs (the same subject contradicted across multiple pages, or a single contradiction the user wants tracked), *propose* a `wiki/conflicts/<slug>.md` page — never auto-write it. The inline `> ⚠ contradicted by` marker stays as a quick visual cue; the conflict page makes it navigable.
 - **Frame, don't assert.** When a claim could go stale (most claims), prefer "Observed (YYYY-MM-DD): X" over bare "X is Y". The model treats framed claims as context to weigh, not commands to follow. Bare assertions are reserved for pages with `confidence: verified`.
+- **Prefer multi-source claims.** When two cited pages disagree and have the same `confidence` tier, prefer the one whose `sources:` frontmatter lists ≥2 independent sources over the single-source page. Source count is a secondary confidence axis: cross-citation across independent sources is harder to fake than any one source's prose. Surface the disparity in the synthesis ("two sources confirm X; a single source claims Y").
 - **Index is sacred.** Every wiki page must have exactly one line in `index.md`. Same turn.
 - **No per-turn auto-work.** Vault is touched only on slash command.
 - **No fabrication.** If the vault doesn't have it, say so — don't paper over with general knowledge.
