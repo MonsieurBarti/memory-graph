@@ -1,0 +1,102 @@
+{
+  "name": "@the-forge-flow/memory-graph",
+  "version": "0.0.0",
+  "description": "Structured knowledge wiki: Claude Code plugin AND pi-coding-agent extension from one repo. LLM-maintained interlinked markdown vault that compounds over time.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "skills",
+    "commands",
+    ".claude-plugin",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prebuild": "rm -rf dist/skills && mkdir -p dist && cp -R skills dist/skills",
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "fmt": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prepare": "lefthook install || true"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "claude-code",
+    "claude-code-plugin",
+    "extension",
+    "memory",
+    "knowledge-base",
+    "second-brain",
+    "obsidian",
+    "wiki",
+    "tff",
+    "the-forge-flow"
+  ],
+  "author": "The Forge Flow",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MonsieurBarti/memory-graph.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MonsieurBarti/memory-graph/issues"
+  },
+  "homepage": "https://github.com/MonsieurBarti/memory-graph#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "pi": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "skills": [
+      "./dist/skills"
+    ]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-tui": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*",
+    "typebox": "*",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "lefthook": "^2.1.5",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  },
+  "trustedDependencies": [
+    "@biomejs/biome",
+    "koffi",
+    "protobufjs"
+  ]
+}

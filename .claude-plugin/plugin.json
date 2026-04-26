@@ -1,0 +1,6 @@
+{
+	"name": "memory-graph",
+	"description": "Structured knowledge wiki for Claude Code. LLM-maintained, interlinked markdown vault that compounds over time. Karpathy LLM Knowledge Base pattern: raw sources → wiki → schema, with ingest / query / lint operations.",
+	"version": "0.0.0",
+	"author": { "name": "monsieurbarti" }
+}
