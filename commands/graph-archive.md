@@ -17,7 +17,7 @@ Archive the current vault state, or list existing archives.
    - `--all`: both
 4. **Snapshot mode** (default). For each target vault:
    - vault root: `~/.memory-graph/<slug>/`
-   - if no `SCHEMA.md` there, skip with a note
+   - if no `SCHEMA.md` there, skip with: "No `<slug>` vault to archive — run `/memory-graph:graph-init` (or `--global`) to bootstrap one first." Continue to the next target if `--all`.
    - destination: `~/.memory-graph-archive/<slug>/<label>-YYYYMMDD/` — append `-2`, `-3`, … if it exists
    - `mkdir -p` the parent
    - `cp -a <vault-root>/. <destination>/` (trailing `/.` copies contents, preserves mtimes)

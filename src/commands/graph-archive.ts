@@ -24,7 +24,7 @@ export function graphArchiveCommand(pi: PiApi): CommandDefinition {
 				const paths = vaultPaths(target, ctx.cwd);
 				if (!existsSync(paths.schema)) {
 					ctx.ui.notify(
-						`${target} vault not initialized at ${paths.root} — skipping.`,
+						`No ${target} vault to archive at ${paths.root}. Run /graph-init${target === "global" ? " --global" : ""} first.`,
 						"warn",
 					);
 					continue;

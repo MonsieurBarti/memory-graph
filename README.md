@@ -116,9 +116,23 @@ pi -e /path/to/memory-graph
 
 Then reload pi with `/reload`.
 
+### First run
+
+After install, your vault doesn't exist yet — every command other than `graph-status` will tell you so and point at `graph-init`. The minimum-viable first session:
+
+```bash
+/memory-graph:graph-init                                  # interview, ~5 minutes
+/memory-graph:graph-ingest <some/source.md|https://…>     # file your first source
+/memory-graph:graph-query "what do I know about <topic>?"  # see it work
+```
+
+`graph-init` interviews you on scope, source kinds, entity types, workflows, and any vault-wide invariants. It writes a `SCHEMA.md` reflecting your answers and bootstraps the directory structure under `~/.memory-graph/<slug>/`. **All optional features ship enabled by default** — decay metadata, confidence tiers, decision + conflict page kinds, related-paths + git-aware consolidation. They cost nothing on a vault that doesn't use them. To disable a feature later, remove its section from `SCHEMA.md`. If `SCHEMA.md` already exists, init stops without overwriting — edit it directly when the schema needs to evolve, or move the existing vault aside if you want to start over.
+
+If you want a global vault (cross-project knowledge), add `--global` to `graph-init` and to the queries you want answered against it. The two vaults stay separate; there is no auto-merge.
+
 ## 🎯 Commands
 
-Six slash commands, identical surface across both runtimes:
+Seven slash commands, identical surface across both runtimes:
 
 | Command | Purpose |
 |---|---|
@@ -126,7 +140,8 @@ Six slash commands, identical surface across both runtimes:
 | `graph-status` | Show stats for both vaults (page counts, last log entries) |
 | `graph-ingest <path-or-url> [--global]` | Ingest a source per the wiki SKILL's procedure |
 | `graph-query <question> [--global]` | Index-first retrieval with citations; optionally `file this` |
-| `graph-lint [--global]` | Run the 9-check health pass |
+| `graph-lint [--global]` | Run the cheap-first lint pass (up to 13 checks; depends on enabled SCHEMA features) |
+| `graph-consolidate [--global]` | Stale-page sweep + near-duplicate sweep + open-conflict roll-up + (in coding vaults) git-aware path-affected sweep — all report-only |
 | `graph-archive [label] [--global \| --all]` | Snapshot to parallel tree; `--list` shows existing snapshots |
 
 The `wiki` skill auto-fires beyond explicit commands too — see "Proactive ingest" inside the SKILL for triggers, anti-triggers, and the first-confirm-then-trust flow.

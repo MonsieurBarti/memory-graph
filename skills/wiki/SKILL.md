@@ -55,6 +55,12 @@ sourceFile: raw/<filename>     # path relative to vault root
 sourceUrl: https://…           # if applicable
 addedAt: YYYY-MM-DD
 author: <if known>
+# Optional decay metadata — see "Confidence tiers and decay" below. Omit if SCHEMA opted out.
+confidence: observed           # verified | observed | inferred | stale (default: observed)
+halfLifeDays: 30               # default for sources
+lastRetrieved: YYYY-MM-DD      # set by query op when cited
+retrievalCount: 0              # bumped by query op on cite
+tags: []                       # `error` auto-bumps halfLifeDays to 30
 ---
 
 # <title>
@@ -81,6 +87,14 @@ entityType: person | company | technology | product | dataset | …
 title: <name>
 sources: [sources/<slug-1>, sources/<slug-2>]
 updatedAt: YYYY-MM-DD
+# Optional decay metadata — see "Confidence tiers and decay" below.
+confidence: observed
+halfLifeDays: 7
+lastRetrieved: YYYY-MM-DD
+retrievalCount: 0
+tags: []
+# Optional code-path linkage — see "Related paths and git-awareness" below.
+relatedPaths: []                 # e.g. [src/auth/, src/middleware/auth.ts]
 ---
 
 # <name>
@@ -101,6 +115,14 @@ kind: concept
 title: <concept name>
 sources: [sources/<slug-1>, sources/<slug-2>]
 updatedAt: YYYY-MM-DD
+# Optional decay metadata — see "Confidence tiers and decay" below.
+confidence: observed
+halfLifeDays: 7
+lastRetrieved: YYYY-MM-DD
+retrievalCount: 0
+tags: []
+# Optional code-path linkage — see "Related paths and git-awareness" below.
+relatedPaths: []
 ---
 
 # <concept name>
@@ -126,6 +148,12 @@ derivedFrom:
   - wiki/entities/<slug>
   - wiki/concepts/<slug>
 filedAt: YYYY-MM-DD
+# Optional decay metadata — see "Confidence tiers and decay" below.
+confidence: observed
+halfLifeDays: 7
+lastRetrieved: YYYY-MM-DD
+retrievalCount: 0
+tags: []
 ---
 
 # <title>
@@ -138,16 +166,143 @@ The synthesized answer in prose, with the same inline `[[wikilinks]]` it had whe
 
 A synthesis is not a source — it has no `raw/` counterpart, no `sourceFile`. It's derivative knowledge produced from other pages in the vault. When a future ingest contradicts a synthesis, mark it with the contradiction marker just like any other page; do not auto-rewrite synthesis pages.
 
-### Index line format — `wiki/index.md`
-One line per page, grouped by kind. Newest entries appended within their group.
+### Decision pages — `wiki/decisions/<slug>.md`
+
+**Default-on.** New vaults include the `decision` kind unless the user explicitly opted out (in which case SCHEMA's "Page kinds" omits it and `wiki/decisions/` isn't created). First-class home for load-bearing decisions with their reasoning, alternatives, and consequences. Slug is a question-as-statement (e.g. `use-sqlite-not-postgres-for-local-vault`); date-prefix if generic.
+
 ```markdown
-- [[wiki/sources/<slug>]] — <one-line summary>     (sourceType, YYYY-MM-DD)
-- [[wiki/entities/<slug>]] — <role/identity in one line>
-- [[wiki/concepts/<slug>]] — <definition in one line>
-- [[wiki/synthesis/<slug>]] — <question this answers, in one line>
+---
+kind: decision
+title: <decision in one line — usually a question-as-statement>
+decidedAt: YYYY-MM-DD
+deciders: [<who>, ...]               # optional
+supersedes: [decisions/<slug>, ...]  # optional
+supersededBy: decisions/<slug>       # set when later overturned
+status: active | superseded | revisited
+sources: [sources/<slug>, ...]
+# Optional decay metadata — decisions default to longer half-life.
+confidence: observed
+halfLifeDays: 90
+lastRetrieved: YYYY-MM-DD
+retrievalCount: 0
+tags: []
+# Optional code-path linkage — see "Related paths and git-awareness" below.
+relatedPaths: []
+---
+
+# <decision in one line>
+
+## Context
+One paragraph: what problem, what constraints.
+
+## Decision
+The decision in 1–3 sentences.
+
+## Reasoning
+Why this over alternatives. Cite [[wiki/sources/<slug>]] / [[wiki/concepts/<slug>]].
+
+## Alternatives considered
+- Option B — why not. Cited.
+- Option C — why not. Cited.
+
+## Consequences
+What this commits us to. What it forecloses. Optional but recommended.
+
+## Revisit triggers
+- "If <condition>, re-evaluate." Optional.
 ```
 
-Default groupings are flat by kind (`## Sources`, `## Entities`, `## Concepts`, `## Synthesis`). If SCHEMA defines sub-types within a kind (e.g. `entities/people/`, `entities/tools/`), sub-divide that kind's group with `###` headers per sub-type. SCHEMA may codify the exact grouping per vault.
+When a decision is later overturned, do not delete it — set `status: superseded`, point `supersededBy` at the new decision, and add `supersedes: [decisions/<slug>]` on the new one. The pair stays navigable.
+
+### Conflict pages — `wiki/conflicts/<slug>.md`
+
+**Default-on.** New vaults include the `conflict` kind unless the user explicitly opted out. Promotes a recurring contradiction from an inline marker into a navigable page. Created by user confirmation during ingest, never auto-written.
+
+```markdown
+---
+kind: conflict
+title: <one-line summary of what disagrees>
+between: [<wiki/path-a>, <wiki/path-b>]   # required, ≥2 entries
+status: open | accepted | resolved
+resolvedBy: decisions/<slug>              # required if status: resolved
+resolution: agree-with-A | agree-with-B | both-true-in-context | superseded
+raisedAt: YYYY-MM-DD
+resolvedAt: YYYY-MM-DD                    # if applicable
+# Optional decay metadata — conflicts stay 7d until resolved, then never.
+confidence: observed
+halfLifeDays: 7
+lastRetrieved: YYYY-MM-DD
+retrievalCount: 0
+tags: []
+# Optional code-path linkage — see "Related paths and git-awareness" below.
+relatedPaths: []
+---
+
+# <one-line summary>
+
+## The contradiction
+What each side claims, in 1–2 sentences each, with [[wikilinks]].
+
+## Evidence
+- A says X, citing [[wiki/sources/<a-source>]] ^[raw:…]
+- B says Y, citing [[wiki/sources/<b-source>]] ^[raw:…]
+
+## Status
+- `open` — unresolved. Both pages remain valid; agents must surface the conflict when citing either.
+- `accepted` — both true in different contexts/scopes/time periods. Document the dimension that splits them.
+- `resolved` — a decision was made. Link `resolvedBy: decisions/<slug>`. The "losing" page gets `supersededBy:` pointing at the decision.
+```
+
+Conflicts with `status: open` ALSO appear at the top of `wiki/index.md` in a `## ⚠ Open conflicts` section so they're impossible to miss on read.
+
+### Index line format — `wiki/index.md`
+One line per page, grouped by kind. Newest entries appended within their group. Lines may carry an optional `{edge-type: target, …}` suffix for typed-graph traversal at query time.
+
+```markdown
+## ⚠ Open conflicts
+- [[wiki/conflicts/<slug>]] — between [[<a>]] and [[<b>]] — open since YYYY-MM-DD
+
+## Invariants
+- <load-bearing claim treated as vault-wide context>. [[wiki/<verified-page>]]
+
+## Sources
+- [[wiki/sources/<slug>]] — <one-line summary>     (sourceType, YYYY-MM-DD)
+
+## Entities
+- [[wiki/entities/<slug>]] — <role/identity in one line>     {instance-of: concepts/<slug>}
+
+## Concepts
+- [[wiki/concepts/<slug>]] — <definition in one line>     {alternative-to: concepts/<other>}
+
+## Synthesis
+- [[wiki/synthesis/<slug>]] — <question this answers, in one line>     {derived-from: sources/<slug>, concepts/<slug>}
+
+## Decisions
+- [[wiki/decisions/<slug>]] — <one-line statement>     (status, YYYY-MM-DD)     {supersedes: decisions/<old-slug>}
+
+## Conflicts
+- [[wiki/conflicts/<slug>]] — <subject> — status: <open|accepted|resolved>
+```
+
+**Typed-edge suffix.** Optional. Format: `{edge-type: target, edge-type: target, ...}` after the line's prose. Reserved edge types (extensible via SCHEMA):
+
+| Edge type | Meaning |
+|---|---|
+| `alternative-to` | This page describes an alternative to the target. |
+| `prerequisite-of` | The target should be understood after this. |
+| `supersedes` / `superseded-by` | Mirror of frontmatter `supersedes` / `supersededBy`. |
+| `contradicts` | Points at a `wiki/conflicts/<slug>` page. |
+| `derived-from` | Synthesis links to its constituent pages (mirror of frontmatter). |
+| `instance-of` | Entity is an instance of a concept. |
+| `cites` | Entity/concept points at a source it relies on heavily. |
+
+Suffixes are **optional sidecar metadata**, not the primary navigation — `[[wikilinks]]` in page bodies still carry the load. The suffix lets the query op traverse without opening bodies, which is the GraphRAG-style "edges over similarity" property in pure markdown.
+
+Default groupings are flat by kind (`## Sources`, `## Entities`, `## Concepts`, `## Synthesis`, plus `## Decisions` and `## Conflicts` when those kinds are enabled). If SCHEMA defines sub-types within a kind (e.g. `entities/people/`, `entities/tools/`), sub-divide that kind's group with `###` headers per sub-type. SCHEMA may codify the exact grouping per vault.
+
+**`## ⚠ Open conflicts`** is a **mirror** — entries duplicate what's in `## Conflicts` for `status: open` rows. Duplication is intentional: it puts open conflicts at the top of the file the query op reads first. Resolved/accepted conflicts live only in `## Conflicts`. If the `conflict` kind isn't enabled in SCHEMA, both sections are absent.
+
+**`## Invariants`** is **opt-in**. It holds load-bearing claims drawn from `confidence: verified` pages — vault-wide context the query op should weigh on every query. Populate it via `/graph-init` (the interview asks), via the agent suggesting promotion when a `verified` page's claim is used repeatedly, or by hand. If absent, queries skip the section silently.
 
 ### Log entry format — `wiki/log.md`
 Append-only. One H2 per event so `grep "^## \[" log.md` works.
@@ -168,6 +323,69 @@ Actions: `init`, `ingest`, `query`, `lint`, `archive`, `schema-update`.
 - `^[raw:p<page>]` — for PDFs
 
 Pick whichever is least ambiguous.
+
+### Confidence tiers and decay
+
+**Default-on.** New vaults bootstrapped by `/graph-init` ship with this feature unless the user explicitly opted out. Every page may carry an implicit confidence and freshness signal in its frontmatter; the agent reasons about staleness on read. To disable on a vault, remove the "Confidence tiers" and "Half-lives" sections from `SCHEMA.md` — the absence is treated as opt-out.
+
+**Confidence tiers:**
+
+- `verified` — The user (or a SCHEMA-named authoritative source) explicitly confirmed it. Treat as fact. Never marked stale regardless of `halfLifeDays`.
+- `observed` — Documented from a real source you read. Default for ingested content.
+- `inferred` — Derived by reasoning, not directly stated. Phrase claims accordingly ("appears to", "consistent with").
+- `stale` — `lastRetrieved` is older than `3 × halfLifeDays`. Set by `/graph-lint` or by the query op on read. The agent must surface staleness when citing.
+
+**Default half-lives** (days; SCHEMA may override vault-wide):
+
+| kind | confidence default | halfLifeDays default |
+|---|---|---|
+| `source` | `observed` | 30 |
+| `entity` | `observed` | 7 |
+| `concept` | `observed` | 7 |
+| `synthesis` | `observed` | 7 |
+
+A page with `tags: [error]` (or any tag SCHEMA designates as sticky) auto-bumps `halfLifeDays` to 30 — error patterns stay valuable longer than incidental observations. Hippo's "errors stick" lesson, as a markdown convention.
+
+**Use, on read:**
+
+- When citing pages during query, **prefer higher confidence**. If two cited pages disagree, lead with the `verified` claim. If only `inferred` or `stale` evidence exists, qualify the synthesis ("as of <date>, observed that…", "consistent with…").
+- `verified` pages are not subject to staleness — `halfLifeDays` is treated as `never`.
+- A page whose `lastRetrieved` is unset is not stale; absence ≠ stale.
+
+**Use, on write:**
+
+- New pages default to `observed` and the per-kind default `halfLifeDays`.
+- Promotion to `verified` is explicit (the user says "verified" or SCHEMA's workflows say so).
+- Demotion to `stale` happens via `/graph-lint` or query-time check, never silently.
+
+If SCHEMA omits the "Confidence tiers" and "Half-lives" sections, treat all decay machinery as opt-out: don't add fields to new pages, don't surface staleness, don't compute `3 × halfLifeDays`. The vault has chosen to skip this.
+
+### Related paths and git-awareness
+
+**Default-on.** New vaults bootstrapped by `/graph-init` ship with this feature unless the user explicitly opted out (e.g. a pure-research vault that won't link to code). Entity / concept / decision / conflict pages may carry an optional `relatedPaths: [...]` frontmatter listing the file paths a page is "about." Borrowed from VALORA.ai's memory model. To disable on a vault, remove the "Related paths" section from `SCHEMA.md`.
+
+Format:
+```yaml
+relatedPaths:
+  - src/auth/middleware.ts
+  - src/auth/                     # trailing slash = directory; matches descendants
+  - tests/auth/**                 # globs allowed
+```
+
+What it enables:
+
+- **Git-aware consolidation** (Phase 5 `/graph-consolidate` extension): when run inside a git repo, the consolidate sweep reads `git log --since=<last-consolidate-date> --name-only` and surfaces a fourth report section listing pages whose `relatedPaths` overlap with changed files. Suggested action: re-verify or supersede. Still report-only — never auto-mutates frontmatter.
+- **Query traversal**: agent answering "what do I know about `src/auth/`" can grep `relatedPaths:` across the index-pointed pages without opening every body.
+- **Lint coverage**: the optional `RELATEDPATHS-MISSING` lint check flags pages that mention code paths in body without listing them in `relatedPaths`.
+
+What it does **not** do:
+- No per-turn hook reads or mutates `relatedPaths` automatically.
+- No automatic invalidation. Code changing ⇒ page becomes a *consolidate suggestion*, not an auto-decay.
+- No watchers, no daemon, no git hook integration.
+
+If SCHEMA opts out, omit the field on new pages and skip git-awareness in `/graph-consolidate`. The vault is path-agnostic by default.
+
+Path matching is conservative: literal paths match exact files; trailing-slash entries match the directory and its descendants; glob entries (`**`, `*`) match per standard shell semantics. Don't try to be clever — if a path pattern doesn't match what the user expected, they'll add a more explicit entry.
 
 ### Contradiction marker
 When new evidence contradicts an existing claim, add this block beneath the claim — never silently rewrite:
@@ -206,6 +424,7 @@ Standard ingest:
 3. Create stub pages for new entities/concepts named in the source.
 4. Append one line per new/updated page to `wiki/index.md`, grouped by kind.
 5. Append the ingest entry to `wiki/log.md`.
+6. **If a contradiction was raised** AND the `conflict` page kind is enabled in SCHEMA, *propose* (do not auto-write) a `wiki/conflicts/<slug>.md` page summarizing the disagreement. Wait for user confirmation before writing it. If the user declines, the inline `> ⚠ contradicted by` marker is the only record.
 
 One source at a time. If the source is non-trivial, surface takeaways and confirm angle before writing.
 
@@ -214,17 +433,38 @@ The whole point of the vault. Get this right.
 
 **Step 1 — read the index.** Open `wiki/index.md`. It is small and authoritative. If it's huge (>~500 lines), read just the index — do not yet open pages.
 
+The top of the index may contain two special sections, both loaded once with the rest of the index (never via per-turn hooks):
+
+- `## ⚠ Open conflicts` — mirrors `status: open` rows from `## Conflicts`. If your question touches a subject in this list, surface the conflict in the answer.
+- `## Invariants` — load-bearing claims marked `confidence: verified` that should be treated as context for any query in this vault. Read them before picking pages; they may shape the framing of the answer even if no invariant page is opened directly.
+
+Both sections are absent on vaults that didn't opt into them — that's fine.
+
 **Step 2 — pick pages, in this order of preference:**
 1. **Synthesis pages** that match the question — they're already-distilled answers; if a recent synthesis covers the question, cite it and stop.
 2. **Concept pages** named in the question — they're the most concentrated knowledge per token.
 3. **Entity pages** named in the question.
-4. **Source pages** that the above link to — open these only if you need to verify a claim or pull a quote.
+4. **Decision pages** when the question touches a load-bearing choice (only if the kind is enabled).
+5. **Source pages** that the above link to — open these only if you need to verify a claim or pull a quote.
 
 Cap reading at ~10 pages by default. If the question genuinely needs more, say so to the user and ask whether to continue.
 
+**Step 2.5 — traverse typed edges if needed.** If the question is comparative ("X vs Y"), traversal-shaped ("how does X relate to Y"), or your initial picks didn't fully cover the question, scan the index for `{edge-type: target}` suffixes pointing at or from your candidate pages. Add up to ~3 traversed pages to your read set. This is your typed-graph traversal — pure index lookup, no body scan. Stop at one hop unless the user asked for deeper. Skip this step if the index has no `{…}` suffixes.
+
 **Step 3 — read those pages.** Do not scan the whole vault. Do not embed-search. **Index-first is the perf contract.**
 
+**Step 3.5 — bump retrieval metadata.** *Only if SCHEMA enabled decay metadata.* For each page actually used in the synthesis (cited inline in your answer — not pages you opened but didn't cite), update its frontmatter in a single Edit per page:
+
+- `lastRetrieved: <today>`
+- `retrievalCount: <prev + 1>`
+
+Do this in batch at the end of the query. If the page has no `lastRetrieved` field at all, do not add it — the field's absence means SCHEMA opted out. Respect that. This is the only mutation `/graph-query` performs against existing pages, capped at ~10 pages per query.
+
 **Step 4 — synthesize.** Default to markdown prose. Use a table when the question is comparative ("how does X differ from Y"). Use a bulleted list when the question is enumerative ("what are all the …"). Slide decks, diagrams, charts — only on explicit request.
+
+When citing pages, **prefer higher confidence**. If two cited pages disagree, lead with the `verified` claim and surface the alternative. If a cited claim is `inferred` or `stale`, qualify it explicitly: "consistent with…", "as of <date>, observed that…". Do not present `inferred` or `stale` claims as bare facts.
+
+When two pages disagree at the same confidence tier, **tie-break by source count**: a claim cited across ≥2 independent sources beats a single-source claim, all else equal. Surface the asymmetry in the synthesis ("two sources confirm X; a single source claims Y").
 
 **Step 5 — cite.** Two layers:
 - **Inline `[[wikilinks]]`** adjacent to each claim — never make a claim without an inline link.
@@ -260,15 +500,22 @@ Run only when explicitly asked. Heavy by design — this is the operation that b
 
 1. **Index drift** (cheap — one ls + one read of `index.md`)
 2. **Broken links** (cheap — grep all `[[wikilinks]]`, check each target exists)
-3. **Stale sources** (cheap — `stat` on `raw/` vs matching `sources/` pages)
-4. **Schema drift** (cheap-medium — read SCHEMA, walk frontmatter on every page)
-5. **Orphans** (medium — grep every page for backlinks to every other page)
-6. **Missing pages** (medium — count name occurrences across pages)
-7. **Uncited claims** (medium — heuristic per page)
-8. **Contradictions** (heavy — semantic, requires reading content)
-9. **Rule drift** (heavy — semantic, requires comparing pages against SCHEMA workflows/rules)
+3. **Broken supersession** (cheap — frontmatter walk for `supersedes`/`supersededBy` + bidirectional integrity)
+4. **Stale sources** (cheap — `stat` on `raw/` vs matching `sources/` pages)
+5. **Stale pages** (cheap-medium — frontmatter walk for `lastRetrieved` + `halfLifeDays`)
+6. **Open conflicts** (cheap — list `wiki/conflicts/*.md` with `status: open`)
+7. **Schema drift** (cheap-medium — read SCHEMA, walk frontmatter on every page)
+8. **Inline-contradiction-recurring** (medium — grep `> ⚠ contradicted by` markers, group by subject)
+9. **Orphans** (medium — grep every page for backlinks to every other page)
+10. **Missing pages** (medium — count name occurrences across pages)
+11. **Uncited claims** (medium — heuristic per page)
+12. **Relatedpaths-missing** (medium — regex-scan page bodies for code path patterns and cross-check against `relatedPaths` frontmatter)
+13. **Contradictions** (heavy — semantic, requires reading content)
+14. **Rule drift** (heavy — semantic, requires comparing pages against SCHEMA workflows/rules)
 
-Skip 8 and 9 unless the user explicitly asks for them, or unless 1–7 produced fewer than ~10 issues.
+Skip 13 and 14 unless the user explicitly asks for them, or unless 1–12 produced fewer than ~10 issues.
+
+Checks 3, 5, 6, 8, and 12 only run when their underlying SCHEMA features are enabled (decay metadata for 3+5, `conflict` page kind for 6, both for 8, `relatedPaths` for 12). When SCHEMA opts out, the check is a no-op.
 
 **Per-issue detection algorithm:**
 
@@ -276,7 +523,12 @@ Skip 8 and 9 unless the user explicitly asks for them, or unless 1–7 produced 
 |---|---|
 | `INDEX-DRIFT` | `ls wiki/{entities,concepts,sources,synthesis}/*.md` vs the wikilinks in `index.md`. Two failure modes: page on disk not in index; index entry resolving to a missing page. |
 | `BROKEN-LINK` | grep `\[\[wiki/[^\]]+\]\]` across all wiki pages; for each, check the target file exists. Dedupe by (source page, target). |
+| `BROKEN-SUPERSESSION` | walk frontmatter on every page; for each `supersededBy:` and each entry in `supersedes:`, check the target wikipath resolves to an existing page. Also: if `A.supersededBy == B`, check `B.supersedes` contains `A` (bidirectional integrity). Skip silently if SCHEMA opted out of decision/decay metadata. |
 | `STALE-SOURCE` | for each `wiki/sources/<slug>.md`, read its `sourceFile:` frontmatter, `stat` both, compare mtimes. Flag if raw is newer. |
+| `STALE-PAGE` | walk frontmatter; for each page with `lastRetrieved` set: flag if `now - lastRetrieved > 3 × halfLifeDays` AND `confidence != verified`. Always flag pages with `confidence: stale`. Pages without `lastRetrieved` are not flagged (absence ≠ stale). Skip silently if SCHEMA opted out of decay metadata. |
+| `OPEN-CONFLICT` | `ls wiki/conflicts/*.md`; for each, read frontmatter; flag every page with `status: open`. One issue per open conflict. Skip silently if the `conflict` kind isn't enabled in SCHEMA. |
+| `INLINE-CONTRADICTION-RECURRING` | grep `> ⚠ contradicted by` markers across all wiki pages; group by the subject page (the page being contradicted). Flag any subject with ≥2 inline markers — suggest promoting to a `wiki/conflicts/<slug>.md` page. Skip silently if the `conflict` kind isn't enabled in SCHEMA. |
+| `RELATEDPATHS-MISSING` | for each entity/concept/decision/conflict page with `relatedPaths` enabled (frontmatter present, even if empty), regex-scan the body for code-path patterns: `\b(?:src\|lib\|tests\|app\|pages\|components\|hooks\|utils\|services\|api)\/[\w./-]+\.[a-z]+\b` (extensible via SCHEMA). Flag pages whose body mentions ≥2 distinct paths that don't appear (literal or by directory-prefix match) in `relatedPaths`. Skip silently if `relatedPaths` is opted out in SCHEMA, or if a page omits the field entirely. |
 | `SCHEMA-DRIFT` | read SCHEMA's "Page kinds", "Entity types", "Source kinds" sections. Walk every page; flag any whose `kind` isn't in SCHEMA's page-kinds list, whose `entityType` isn't in SCHEMA's entity-types list, or whose `sourceType` isn't in SCHEMA's source-kinds list. Also flag pages missing the required frontmatter fields for their kind. |
 | `ORPHAN` | for each wiki page, grep all other wiki pages for `[[wiki/<that-page-without-ext>]]`. Exclude `index.md` and `log.md` from the inbound counters — those are catalogs, not content connections. Zero hits = orphan. Synthesis pages aren't expected to have backlinks (they're terminal); skip them unless the user asked for full mode. |
 | `MISSING-PAGE` | extract entity/concept names from page titles and from claim text (capitalized noun phrases is a good-enough heuristic); count occurrences across pages; flag any name with ≥3 occurrences and no matching `wiki/entities/<slug>.md` or `wiki/concepts/<slug>.md`. **Stop-list — never flag**: section header tokens (`Claims`, `Key`, `Related`, `Open`, `Activity`, `Sources`, `Entities`, `Concepts`, `Synthesis`, `Why`, `How`, `What`, `When`, `Output`, `Input`, `Setup`, `Install`, `Note`, `TL`) and bare technical terms (`HTML`, `CSS`, `JS`, `JSON`, `YAML`, `README`, `API`, `URL`, `URI`, `SVG`, `PDF`, `PNG`, `JPG`, `Grid`). |
@@ -286,9 +538,9 @@ Skip 8 and 9 unless the user explicitly asks for them, or unless 1–7 produced 
 
 **Severity:**
 
-- `error` — `BROKEN-LINK`, `INDEX-DRIFT`. The vault is structurally inconsistent; future ingests/queries will misbehave.
-- `warn` — `STALE-SOURCE`, `SCHEMA-DRIFT`, `CONTRADICTION`. Content or structure is suspect.
-- `info` — `ORPHAN`, `MISSING-PAGE`, `UNCITED-CLAIM`, `RULE-DRIFT`. Vault is healthy, just thin, sloppy, or stale-against-schema in spots.
+- `error` — `BROKEN-LINK`, `INDEX-DRIFT`, `BROKEN-SUPERSESSION`. The vault is structurally inconsistent; future ingests/queries will misbehave.
+- `warn` — `STALE-SOURCE`, `STALE-PAGE`, `SCHEMA-DRIFT`, `CONTRADICTION`. Content or structure is suspect.
+- `info` — `OPEN-CONFLICT`, `INLINE-CONTRADICTION-RECURRING`, `ORPHAN`, `MISSING-PAGE`, `UNCITED-CLAIM`, `RELATEDPATHS-MISSING`, `RULE-DRIFT`. Vault is healthy, just thin, sloppy, or stale-against-schema in spots.
 
 **Issue IDs** — assign sequential IDs per kind within a single lint run: `INDEX-DRIFT-1`, `INDEX-DRIFT-2`, `BROKEN-LINK-1`, … This lets the user say "fix BROKEN-LINK-3 and ORPHAN-1" in a follow-up turn.
 
@@ -318,7 +570,12 @@ Health buckets: `clean` (0 errors, 0 warns), `healthy` (0 errors, ≤3 warns), `
 | `INDEX-DRIFT` (page on disk, not in index) | Append `- [[wiki/<path>]] — <one-line summary>` to `index.md` under the matching kind group. |
 | `INDEX-DRIFT` (index entry, missing page) | Remove the line from `index.md` (the page was deleted), or create the page. |
 | `BROKEN-LINK` | Rename to closest existing slug, or remove the link, or create the missing page. |
+| `BROKEN-SUPERSESSION` | Fix the path (rename, typo); or update the bidirectional pointer on the partner page; or remove the dangling `supersededBy`/`supersedes` field if the partner was deleted. |
 | `STALE-SOURCE` | Re-ingest the source: `/memory-graph:graph-ingest <raw-path>`. |
+| `STALE-PAGE` | Re-read the source(s) and either re-confirm (bumps `lastRetrieved`, optionally promote to `verified`) or supersede with a `wiki/decisions/<slug>` if the page's claim no longer holds. |
+| `OPEN-CONFLICT` | Decide the conflict: change `status: accepted` (both true in context — document the dimension), `status: resolved` and add `resolvedBy: decisions/<slug>`, or merge by superseding the losing claim. |
+| `INLINE-CONTRADICTION-RECURRING` | Promote to a conflict page: create `wiki/conflicts/<slug>.md` summarizing the recurring disagreement; preserve the inline markers as breadcrumbs. |
+| `RELATEDPATHS-MISSING` | Add the mentioned paths to the page's `relatedPaths:` frontmatter list (literal paths or trailing-slash directory entries). If a path was mentioned only incidentally and isn't a real anchor, edit the body to be less code-path-shaped instead. |
 | `SCHEMA-DRIFT` | Either update the page's frontmatter to match SCHEMA, or amend SCHEMA to permit the variant (and append a `schema-update` log entry). |
 | `ORPHAN` | Either link this page from somewhere it belongs, or delete it. |
 | `MISSING-PAGE` | Create `wiki/entities/<slug>.md` (or `concepts/`), seed it with one cited claim. |
@@ -380,9 +637,88 @@ cp -a ~/.memory-graph-archive/<vault-slug>/<label>-YYYYMMDD/. ~/.memory-graph/<v
 
 If the user wants to skip the auto-snapshot in step 1, say so but don't argue.
 
+### Consolidate
+Run only when explicitly asked via `/graph-consolidate`. Heavy: walks frontmatter on every page, then reads bodies for near-duplicate suspects. **Report-only — never mutates a wiki page.** The only write is the log entry at the end.
+
+Hippo-memory's "sleep" pass, ported as a manual command outside the chat loop. The lessons from `hippo-memory-pi` apply directly: sleep that runs automatically in-session is what makes a memory system unscalable. Manual + report-only keeps the same surface value without the perf trap.
+
+**Order of operations:**
+
+1. **Stale-page sweep** (frontmatter walk only). For each page with `lastRetrieved` set, flag if `now - lastRetrieved > 3 × halfLifeDays` AND `confidence != verified`. Group by kind. Skip silently if SCHEMA opted out of decay metadata.
+
+2. **Near-duplicate sweep** (heuristic, intentionally narrow). For each pair of pages of the same `kind`, count signals:
+   - Title Jaccard similarity ≥0.7 over title tokens after stopword removal.
+   - Slugs share a kebab-case stem (e.g. `index-first-retrieval`, `index-first-retrieval-2`).
+   - Bodies share ≥3 of the same `[[wikilinks]]`.
+
+   Emit only candidates that match **≥2 of the three signals** — keeps false positives low. Group candidates into clusters. Skip the entire sweep if the vault has <20 pages of a given kind (signal-to-noise too low).
+
+3. **Open-conflict roll-up.** List every `wiki/conflicts/*.md` with `status: open`. Show subject, age (`now - raisedAt`), and the two pages it bridges. Skip silently if the `conflict` kind isn't enabled.
+
+4. **Pages affected by recent code changes** (git-aware, opt-in). If SCHEMA enabled `relatedPaths` AND the cwd is a git repo, find the most recent prior `consolidate` entry in `wiki/log.md`, parse its date (or fall back to "30 days ago" on first run). Run `git log --since=<that-date> --name-only --pretty=format:` to get the set of changed paths. Walk every wiki page; flag any whose `relatedPaths` intersect (literal-path-equality, directory-prefix-match for trailing-slash entries, or glob-match for `**`/`*` entries) with the changed set. Skip silently if not in a git repo, or if SCHEMA opted out of `relatedPaths`.
+
+**Output format** — three or four top-level markdown sections (the fourth only when git-aware):
+
+```markdown
+## Stale pages — N total
+
+| Kind | Slug | Age | Last retrieved | Suggested action |
+|---|---|---|---|---|
+| concept | index-first-retrieval | 24d (3.4× half-life) | 2026-04-02 | Re-confirm by re-reading sources, or supersede with a decision. |
+
+## Near-duplicates — N clusters
+
+| Cluster | Pages | Overlap signals | Suggested merge target |
+|---|---|---|---|
+| 1 | concepts/index-first-retrieval, concepts/index-first-retrieval-2 | title (0.82), slug-stem, 3 shared links | concepts/index-first-retrieval (higher retrievalCount) |
+
+## Open conflicts — N total
+
+| Slug | Subject | Age | Between | Suggested action |
+|---|---|---|---|---|
+| 1 | conflicts/sqlite-vs-fts | SQLite vs FTS5 for vault search | 12d | sources/sqlite-tradeoffs ↔ sources/fts5-bench | Decide (write decisions/<slug>), or accept (mark `status: accepted`). |
+
+## Pages affected by recent code changes — N total
+
+| Page | Related paths | Changed files (sample) | Suggested action |
+|---|---|---|---|
+| entities/auth-middleware | src/auth/middleware.ts | src/auth/middleware.ts, src/auth/session.ts | Re-read the file and either re-confirm (bump `lastRetrieved`) or supersede with a decision. |
+
+**Consolidate summary:** N stale, N duplicate clusters, N open conflicts, N path-affected. Suggested next: …
+```
+
+End with a one-line topline pointing the user at the highest-value next action. Examples:
+- "Resolve the 2 oldest open conflicts first — they block downstream supersession."
+- "Re-confirm the 3 stale `verified`-candidate pages before re-evaluating duplicates."
+- "Vault is healthy. Next consolidate suggested in ~30 days."
+
+**Discipline:**
+- Read-only. Never edits a page. The only write is the log entry below.
+- Never proposes auto-deletion. Always proposes merge-with-target or supersede.
+- If a stale page is `kind: decision` and `status: superseded`, treat as expected; do not flag.
+- The user reviews the report and decides what (if anything) to fix manually.
+
+**Log entry:**
+
+```markdown
+## [YYYY-MM-DD] consolidate | counts: 12 stale / 3 dup-clusters / 2 open-conflicts / 4 path-affected
+```
+
+The path-affected count is omitted from the entry when the git-aware section was skipped (no SCHEMA opt-in, or not in a git repo). The date in this entry is the timestamp the *next* `/graph-consolidate` will use as the `--since` cutoff for git-awareness.
+
 ## Proactive ingest
 
 Beyond explicit slash commands, you may auto-invoke this skill when natural triggers arise. **Be conservative.** Ask once before the first auto-action of a session; trust the user's answer for the rest of the session.
+
+### The calibration heuristic
+
+Before firing any auto-trigger, ask yourself: **"Would the user want to re-derive this in 3 weeks?"**
+
+- *Yes* (they'd want the answer back without the work) → it's vault-shaped. Fire.
+- *No* (they'd shrug and re-Google) → it's ephemeral. Skip.
+- *Ambiguous* → propose, don't auto-write.
+
+This rule beats keyword matching. A "URL" can be a paper worth filing or a Slack permalink worth ignoring. A "decision" can be a load-bearing choice or a one-off keystroke preference. The 3-week test cuts through both.
 
 ### Auto-triggers
 
@@ -393,6 +729,24 @@ Fire the relevant operation when:
 - **An existing vault entity is mentioned with a new substantive claim** in the conversation — e.g. user says "actually visual-explainer also supports X". Read `wiki/index.md` (cheap), confirm the entity exists, then propose updating that entity's Claims section with the new fact, citing the conversation turn or any external source the user provided.
 
 - **A question's answer would be lost without filing** — decision-shaped ("should we use X or Y?"), methodology-shaped ("how do I structure X?"), comparison-shaped ("X vs Y"). After delivering the synthesis, propose `file this` so it lands in `wiki/synthesis/`.
+
+### Borderline cases — worked
+
+| Situation | Fire? | Why |
+|---|---|---|
+| User pastes `https://gist.github.com/karpathy/...` and says "interesting" | **Yes** | Gist on a substantive topic from a citable author — clearly re-derivable knowledge. |
+| User pastes `https://app.slack.com/archives/.../p1234` | **No** | Slack permalink. Even if the content matters, the URL rots and the convo is private. If the *content* matters, ask the user to paste the substance. |
+| User says "actually I think we should use Postgres for this" | **No** | A working preference, not a recorded decision. If it solidifies — explicit `wiki/decisions/` — propose then. |
+| User says "decided: we're going with Postgres because of FTS5 limits" | **Yes** | Decision-shaped *and* reasoned. Propose a `wiki/decisions/<slug>.md` with the reasoning, after one confirm. |
+| User shares `~/Downloads/screenshot-3.png` while debugging | **No** | Transient artifact. Ingest only if they say "let me file this for the writeup". |
+| User says "X vs Y comparison would be useful" mid-conversation | **No** | Wishlist, not knowledge. Wait for the comparison to actually be derived. |
+| User asks "how does our auth flow work" → you synthesize from 4 vault pages | **Yes (file-back)** | Substantive synthesis worth filing. Propose `file this` after the answer. |
+| User asks "what's the current time" → you answer | **No** | Trivial lookup. No vault shape. |
+| User pastes 800-word internal RFC text | **Yes** | Long-form citable content. Propose ingest with title confirm. |
+| User pastes a single CLI command they ran | **No** | Working state, not knowledge. Unless they say "this is the canonical way", in which case it's methodology-shaped → propose. |
+| URL in a quoted block from someone else's message the user is forwarding | **Ask** | Provenance unclear; one-confirm whether this is "for context" or "to file". |
+
+When in doubt, the Anti-triggers below win over the Auto-triggers above.
 
 ### Anti-triggers — do NOT auto-ingest
 
@@ -559,6 +913,8 @@ Vault state: 18 wiki pages across all kinds. Two entity pages were renamed last 
 
 **Step 7 — CONTRADICTION.** Skip — total issues so far is already 14, well over the threshold to defer the heavy check. Tell the user.
 
+> When SCHEMA enables decay metadata or the `conflict` page kind, the new checks (`BROKEN-SUPERSESSION`, `STALE-PAGE`, `OPEN-CONFLICT`, `INLINE-CONTRADICTION-RECURRING`) run in their tier-appropriate slots — same output shape, different table headers. The threshold rule applies to the whole pass: skip `CONTRADICTION` and `RULE-DRIFT` once 1–11 produce ≥10 issues.
+
 **Output:**
 
 ```markdown
@@ -648,7 +1004,9 @@ snapshot-20260412/   780K   (14 days ago)
 - **Raw is immutable.** Never edit anything under `raw/`.
 - **You own the wiki.** The user reads it; you write it.
 - **Cite every claim.** Inline `[[wikilinks]]`, plus `^[raw:…]` anchors in source pages. Never cite a page you didn't open.
-- **Surface contradictions, never hide them.**
+- **Surface contradictions, never hide them.** When a contradiction recurs (the same subject contradicted across multiple pages, or a single contradiction the user wants tracked), *propose* a `wiki/conflicts/<slug>.md` page — never auto-write it. The inline `> ⚠ contradicted by` marker stays as a quick visual cue; the conflict page makes it navigable.
+- **Frame, don't assert.** When a claim could go stale (most claims), prefer "Observed (YYYY-MM-DD): X" over bare "X is Y". The model treats framed claims as context to weigh, not commands to follow. Bare assertions are reserved for pages with `confidence: verified`.
+- **Prefer multi-source claims.** When two cited pages disagree and have the same `confidence` tier, prefer the one whose `sources:` frontmatter lists ≥2 independent sources over the single-source page. Source count is a secondary confidence axis: cross-citation across independent sources is harder to fake than any one source's prose. Surface the disparity in the synthesis ("two sources confirm X; a single source claims Y").
 - **Index is sacred.** Every wiki page must have exactly one line in `index.md`. Same turn.
 - **No per-turn auto-work.** Vault is touched only on slash command.
 - **No fabrication.** If the vault doesn't have it, say so — don't paper over with general knowledge.
