@@ -55,6 +55,12 @@ sourceFile: raw/<filename>     # path relative to vault root
 sourceUrl: https://…           # if applicable
 addedAt: YYYY-MM-DD
 author: <if known>
+# Optional decay metadata — see "Confidence tiers and decay" below. Omit if SCHEMA opted out.
+confidence: observed           # verified | observed | inferred | stale (default: observed)
+halfLifeDays: 30               # default for sources
+lastRetrieved: YYYY-MM-DD      # set by query op when cited
+retrievalCount: 0              # bumped by query op on cite
+tags: []                       # `error` auto-bumps halfLifeDays to 30
 ---
 
 # <title>
@@ -81,6 +87,12 @@ entityType: person | company | technology | product | dataset | …
 title: <name>
 sources: [sources/<slug-1>, sources/<slug-2>]
 updatedAt: YYYY-MM-DD
+# Optional decay metadata — see "Confidence tiers and decay" below.
+confidence: observed
+halfLifeDays: 7
+lastRetrieved: YYYY-MM-DD
+retrievalCount: 0
+tags: []
 ---
 
 # <name>
@@ -101,6 +113,12 @@ kind: concept
 title: <concept name>
 sources: [sources/<slug-1>, sources/<slug-2>]
 updatedAt: YYYY-MM-DD
+# Optional decay metadata — see "Confidence tiers and decay" below.
+confidence: observed
+halfLifeDays: 7
+lastRetrieved: YYYY-MM-DD
+retrievalCount: 0
+tags: []
 ---
 
 # <concept name>
@@ -126,6 +144,12 @@ derivedFrom:
   - wiki/entities/<slug>
   - wiki/concepts/<slug>
 filedAt: YYYY-MM-DD
+# Optional decay metadata — see "Confidence tiers and decay" below.
+confidence: observed
+halfLifeDays: 7
+lastRetrieved: YYYY-MM-DD
+retrievalCount: 0
+tags: []
 ---
 
 # <title>
@@ -168,6 +192,42 @@ Actions: `init`, `ingest`, `query`, `lint`, `archive`, `schema-update`.
 - `^[raw:p<page>]` — for PDFs
 
 Pick whichever is least ambiguous.
+
+### Confidence tiers and decay
+
+Every page may carry an implicit confidence and freshness signal in its frontmatter. These are defaults — SCHEMA.md may override or opt out entirely (omit the fields and they're ignored).
+
+**Confidence tiers:**
+
+- `verified` — The user (or a SCHEMA-named authoritative source) explicitly confirmed it. Treat as fact. Never marked stale regardless of `halfLifeDays`.
+- `observed` — Documented from a real source you read. Default for ingested content.
+- `inferred` — Derived by reasoning, not directly stated. Phrase claims accordingly ("appears to", "consistent with").
+- `stale` — `lastRetrieved` is older than `3 × halfLifeDays`. Set by `/graph-lint` or by the query op on read. The agent must surface staleness when citing.
+
+**Default half-lives** (days; SCHEMA may override vault-wide):
+
+| kind | confidence default | halfLifeDays default |
+|---|---|---|
+| `source` | `observed` | 30 |
+| `entity` | `observed` | 7 |
+| `concept` | `observed` | 7 |
+| `synthesis` | `observed` | 7 |
+
+A page with `tags: [error]` (or any tag SCHEMA designates as sticky) auto-bumps `halfLifeDays` to 30 — error patterns stay valuable longer than incidental observations. Hippo's "errors stick" lesson, as a markdown convention.
+
+**Use, on read:**
+
+- When citing pages during query, **prefer higher confidence**. If two cited pages disagree, lead with the `verified` claim. If only `inferred` or `stale` evidence exists, qualify the synthesis ("as of <date>, observed that…", "consistent with…").
+- `verified` pages are not subject to staleness — `halfLifeDays` is treated as `never`.
+- A page whose `lastRetrieved` is unset is not stale; absence ≠ stale.
+
+**Use, on write:**
+
+- New pages default to `observed` and the per-kind default `halfLifeDays`.
+- Promotion to `verified` is explicit (the user says "verified" or SCHEMA's workflows say so).
+- Demotion to `stale` happens via `/graph-lint` or query-time check, never silently.
+
+If SCHEMA omits the "Confidence tiers" and "Half-lives" sections, treat all decay machinery as opt-out: don't add fields to new pages, don't surface staleness, don't compute `3 × halfLifeDays`. The vault has chosen to skip this.
 
 ### Contradiction marker
 When new evidence contradicts an existing claim, add this block beneath the claim — never silently rewrite:
@@ -649,6 +709,7 @@ snapshot-20260412/   780K   (14 days ago)
 - **You own the wiki.** The user reads it; you write it.
 - **Cite every claim.** Inline `[[wikilinks]]`, plus `^[raw:…]` anchors in source pages. Never cite a page you didn't open.
 - **Surface contradictions, never hide them.**
+- **Frame, don't assert.** When a claim could go stale (most claims), prefer "Observed (YYYY-MM-DD): X" over bare "X is Y". The model treats framed claims as context to weigh, not commands to follow. Bare assertions are reserved for pages with `confidence: verified`.
 - **Index is sacred.** Every wiki page must have exactly one line in `index.md`. Same turn.
 - **No per-turn auto-work.** Vault is touched only on slash command.
 - **No fabrication.** If the vault doesn't have it, say so — don't paper over with general knowledge.

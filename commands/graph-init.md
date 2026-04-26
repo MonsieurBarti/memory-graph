@@ -14,6 +14,7 @@ Bootstrap a memory-graph vault. **Interactive — sit down with the user. Do not
    - What kinds of sources will end up here? (papers, articles, transcripts, internal docs, code snippets, screenshots — pick what's actually expected)
    - What entity types matter? (people, companies, technologies, concepts, products, datasets — the user picks)
    - Any workflows that should run on every ingest? (e.g. "always extract one open question per paper", "tag every source with a confidence level", "if it's about a person, also update their `entities/people/<name>.md` timeline")
+   - Should pages track freshness (last retrieved, half-life, confidence tiers)? Optional — useful for vaults where information goes out of date (research, infra), less useful for stable reference vaults. If no, skip; if yes, the SCHEMA gets a "Confidence tiers" and "Half-lives" section.
    - Anything else the wiki should always do or never do?
 
    Listen and reflect back briefly between questions. If the user gives short answers, don't push for length — the SCHEMA is meant to evolve, not be finished today.
@@ -37,6 +38,8 @@ Bootstrap a memory-graph vault. **Interactive — sit down with the user. Do not
    - **Contradiction marker** — the `> ⚠ contradicted by [[sources/<slug>]]:` block; explain that contradictions must be surfaced, never silently rewritten.
    - **Log entry format** — `## [YYYY-MM-DD] <action> | <title>` where action ∈ `ingest, query, lint, archive, init`.
    - **Workflows** — the user's custom rules from question 4, written as imperatives ("After every ingest, ...").
+   - **Confidence tiers** — *only if the user opted into freshness tracking.* `verified | observed | inferred | stale`. Default `observed`. `verified` pages never go stale. `inferred` claims must be phrased as such ("appears to", "consistent with").
+   - **Half-lives** — *only if the user opted into freshness tracking.* Default per-kind: `source` 30d, `entity` 7d, `concept` 7d, `synthesis` 7d. Pages tagged `error` auto-bump to 30d. SCHEMA may set a vault-wide override.
    - **Co-evolve** — a closing paragraph explicitly inviting the user to come back and amend this file as the vault grows. End with: `_Last updated: YYYY-MM-DD by /memory-graph:graph-init._`
 
 6. Report: vault path, what was created, and the first thing to try (`/memory-graph:graph-ingest <path>`).
