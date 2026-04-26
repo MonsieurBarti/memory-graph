@@ -15,6 +15,7 @@ Bootstrap a memory-graph vault. **Interactive — sit down with the user. Do not
    - What entity types matter? (people, companies, technologies, concepts, products, datasets — the user picks)
    - Any workflows that should run on every ingest? (e.g. "always extract one open question per paper", "tag every source with a confidence level", "if it's about a person, also update their `entities/people/<name>.md` timeline")
    - Should pages track freshness (last retrieved, half-life, confidence tiers)? Optional — useful for vaults where information goes out of date (research, infra), less useful for stable reference vaults. If no, skip; if yes, the SCHEMA gets a "Confidence tiers" and "Half-lives" section.
+   - Do you want first-class `decision` and `conflict` page kinds? Useful for engineering vaults (decisions live in `wiki/decisions/` with reasoning + alternatives + consequences; conflicts surface contradictions as navigable pages with an `## ⚠ Open conflicts` mirror at the top of the index). Probably overkill for pure research vaults.
    - Anything else the wiki should always do or never do?
 
    Listen and reflect back briefly between questions. If the user gives short answers, don't push for length — the SCHEMA is meant to evolve, not be finished today.
@@ -25,6 +26,8 @@ Bootstrap a memory-graph vault. **Interactive — sit down with the user. Do not
    - `<vault-root>/wiki/concepts/` (empty)
    - `<vault-root>/wiki/sources/` (empty)
    - `<vault-root>/wiki/synthesis/` (empty)
+   - `<vault-root>/wiki/decisions/` (empty) — only if the user opted into the `decision` kind
+   - `<vault-root>/wiki/conflicts/` (empty) — only if the user opted into the `conflict` kind
    - `<vault-root>/wiki/index.md` — `# Index\n\n_Empty. First entry will appear here after the first ingest._\n`
    - `<vault-root>/wiki/log.md` — `# Log\n\n## [YYYY-MM-DD] init\nVault bootstrapped.\n`
    - `<vault-root>/SCHEMA.md` — see structure below.
@@ -32,7 +35,7 @@ Bootstrap a memory-graph vault. **Interactive — sit down with the user. Do not
 5. The `SCHEMA.md` you write must contain, in this order:
    - **Scope** — the user's one-line answer to "what's this vault for".
    - **Source kinds** — list of source types the user mentioned, with the slug pattern for each.
-   - **Page kinds** — at minimum `source`, `entity`, `concept`, `synthesis`. Add anything custom the user named (e.g. `decision`, `person`, `dataset`).
+   - **Page kinds** — at minimum `source`, `entity`, `concept`, `synthesis`. Add `decision` and/or `conflict` if the user opted in (each gets its own `wiki/<kind>s/` directory and its own template — see SKILL). Add anything else custom the user named (e.g. `person`, `dataset`).
    - **Entity types** — the categories the user gave, each with the directory it lives in.
    - **Wikilink convention** — `[[wiki/<path>]]` for explicit, `[[<slug>]]` shorthand resolved against page kinds.
    - **Contradiction marker** — the `> ⚠ contradicted by [[sources/<slug>]]:` block; explain that contradictions must be surfaced, never silently rewritten.

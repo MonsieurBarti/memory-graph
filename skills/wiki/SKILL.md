@@ -162,16 +162,119 @@ The synthesized answer in prose, with the same inline `[[wikilinks]]` it had whe
 
 A synthesis is not a source — it has no `raw/` counterpart, no `sourceFile`. It's derivative knowledge produced from other pages in the vault. When a future ingest contradicts a synthesis, mark it with the contradiction marker just like any other page; do not auto-rewrite synthesis pages.
 
+### Decision pages — `wiki/decisions/<slug>.md`
+
+Opt-in (SCHEMA must list `decision` under "Page kinds"). First-class home for load-bearing decisions with their reasoning, alternatives, and consequences. Slug is a question-as-statement (e.g. `use-sqlite-not-postgres-for-local-vault`); date-prefix if generic.
+
+```markdown
+---
+kind: decision
+title: <decision in one line — usually a question-as-statement>
+decidedAt: YYYY-MM-DD
+deciders: [<who>, ...]               # optional
+supersedes: [decisions/<slug>, ...]  # optional
+supersededBy: decisions/<slug>       # set when later overturned
+status: active | superseded | revisited
+sources: [sources/<slug>, ...]
+# Optional decay metadata — decisions default to longer half-life.
+confidence: observed
+halfLifeDays: 90
+lastRetrieved: YYYY-MM-DD
+retrievalCount: 0
+tags: []
+---
+
+# <decision in one line>
+
+## Context
+One paragraph: what problem, what constraints.
+
+## Decision
+The decision in 1–3 sentences.
+
+## Reasoning
+Why this over alternatives. Cite [[wiki/sources/<slug>]] / [[wiki/concepts/<slug>]].
+
+## Alternatives considered
+- Option B — why not. Cited.
+- Option C — why not. Cited.
+
+## Consequences
+What this commits us to. What it forecloses. Optional but recommended.
+
+## Revisit triggers
+- "If <condition>, re-evaluate." Optional.
+```
+
+When a decision is later overturned, do not delete it — set `status: superseded`, point `supersededBy` at the new decision, and add `supersedes: [decisions/<slug>]` on the new one. The pair stays navigable.
+
+### Conflict pages — `wiki/conflicts/<slug>.md`
+
+Opt-in (SCHEMA must list `conflict` under "Page kinds"). Promotes a recurring contradiction from an inline marker into a navigable page. Created by user confirmation during ingest, never auto-written.
+
+```markdown
+---
+kind: conflict
+title: <one-line summary of what disagrees>
+between: [<wiki/path-a>, <wiki/path-b>]   # required, ≥2 entries
+status: open | accepted | resolved
+resolvedBy: decisions/<slug>              # required if status: resolved
+resolution: agree-with-A | agree-with-B | both-true-in-context | superseded
+raisedAt: YYYY-MM-DD
+resolvedAt: YYYY-MM-DD                    # if applicable
+# Optional decay metadata — conflicts stay 7d until resolved, then never.
+confidence: observed
+halfLifeDays: 7
+lastRetrieved: YYYY-MM-DD
+retrievalCount: 0
+tags: []
+---
+
+# <one-line summary>
+
+## The contradiction
+What each side claims, in 1–2 sentences each, with [[wikilinks]].
+
+## Evidence
+- A says X, citing [[wiki/sources/<a-source>]] ^[raw:…]
+- B says Y, citing [[wiki/sources/<b-source>]] ^[raw:…]
+
+## Status
+- `open` — unresolved. Both pages remain valid; agents must surface the conflict when citing either.
+- `accepted` — both true in different contexts/scopes/time periods. Document the dimension that splits them.
+- `resolved` — a decision was made. Link `resolvedBy: decisions/<slug>`. The "losing" page gets `supersededBy:` pointing at the decision.
+```
+
+Conflicts with `status: open` ALSO appear at the top of `wiki/index.md` in a `## ⚠ Open conflicts` section so they're impossible to miss on read.
+
 ### Index line format — `wiki/index.md`
 One line per page, grouped by kind. Newest entries appended within their group.
 ```markdown
+## ⚠ Open conflicts
+- [[wiki/conflicts/<slug>]] — between [[<a>]] and [[<b>]] — open since YYYY-MM-DD
+
+## Sources
 - [[wiki/sources/<slug>]] — <one-line summary>     (sourceType, YYYY-MM-DD)
+
+## Entities
 - [[wiki/entities/<slug>]] — <role/identity in one line>
+
+## Concepts
 - [[wiki/concepts/<slug>]] — <definition in one line>
+
+## Synthesis
 - [[wiki/synthesis/<slug>]] — <question this answers, in one line>
+
+## Decisions
+- [[wiki/decisions/<slug>]] — <one-line statement>     (status, YYYY-MM-DD)
+
+## Conflicts
+- [[wiki/conflicts/<slug>]] — <subject> — status: <open|accepted|resolved>
 ```
 
-Default groupings are flat by kind (`## Sources`, `## Entities`, `## Concepts`, `## Synthesis`). If SCHEMA defines sub-types within a kind (e.g. `entities/people/`, `entities/tools/`), sub-divide that kind's group with `###` headers per sub-type. SCHEMA may codify the exact grouping per vault.
+Default groupings are flat by kind (`## Sources`, `## Entities`, `## Concepts`, `## Synthesis`, plus `## Decisions` and `## Conflicts` when those kinds are enabled). If SCHEMA defines sub-types within a kind (e.g. `entities/people/`, `entities/tools/`), sub-divide that kind's group with `###` headers per sub-type. SCHEMA may codify the exact grouping per vault.
+
+The `## ⚠ Open conflicts` section is a **mirror** — entries duplicate what's in `## Conflicts` for `status: open` rows. Duplication is intentional: it puts open conflicts at the top of the file the query op reads first. Resolved/accepted conflicts live only in `## Conflicts`. If the `conflict` kind isn't enabled in SCHEMA, both sections are absent — don't create them.
 
 ### Log entry format — `wiki/log.md`
 Append-only. One H2 per event so `grep "^## \[" log.md` works.
@@ -266,6 +369,7 @@ Standard ingest:
 3. Create stub pages for new entities/concepts named in the source.
 4. Append one line per new/updated page to `wiki/index.md`, grouped by kind.
 5. Append the ingest entry to `wiki/log.md`.
+6. **If a contradiction was raised** AND the `conflict` page kind is enabled in SCHEMA, *propose* (do not auto-write) a `wiki/conflicts/<slug>.md` page summarizing the disagreement. Wait for user confirmation before writing it. If the user declines, the inline `> ⚠ contradicted by` marker is the only record.
 
 One source at a time. If the source is non-trivial, surface takeaways and confirm angle before writing.
 
@@ -708,7 +812,7 @@ snapshot-20260412/   780K   (14 days ago)
 - **Raw is immutable.** Never edit anything under `raw/`.
 - **You own the wiki.** The user reads it; you write it.
 - **Cite every claim.** Inline `[[wikilinks]]`, plus `^[raw:…]` anchors in source pages. Never cite a page you didn't open.
-- **Surface contradictions, never hide them.**
+- **Surface contradictions, never hide them.** When a contradiction recurs (the same subject contradicted across multiple pages, or a single contradiction the user wants tracked), *propose* a `wiki/conflicts/<slug>.md` page — never auto-write it. The inline `> ⚠ contradicted by` marker stays as a quick visual cue; the conflict page makes it navigable.
 - **Frame, don't assert.** When a claim could go stale (most claims), prefer "Observed (YYYY-MM-DD): X" over bare "X is Y". The model treats framed claims as context to weigh, not commands to follow. Bare assertions are reserved for pages with `confidence: verified`.
 - **Index is sacred.** Every wiki page must have exactly one line in `index.md`. Same turn.
 - **No per-turn auto-work.** Vault is touched only on slash command.

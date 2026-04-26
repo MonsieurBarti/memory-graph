@@ -23,5 +23,6 @@ Ingest the source described in `$ARGUMENTS` into the wiki.
    Compute the slug per SCHEMA's convention.
 6. Read the source end-to-end. If it's non-trivial (>~2000 words, dense, or seems likely to contradict existing pages), surface the key takeaways to the user and confirm the angle before writing the wiki pages.
 7. Execute the ingest pass exactly as in the SKILL's "Worked example": write `sources/<slug>.md`, touch affected entity/concept pages, create stub pages for new entities/concepts, update `index.md`, append to `log.md`.
-8. Run any custom workflows SCHEMA's "Workflows" section requires (e.g. "extract one open question per paper").
-9. Report: vault used, pages created, pages updated, contradictions raised. Suggest a useful follow-up.
+8. **If a contradiction was raised** and SCHEMA enables the `conflict` page kind, *propose* a `wiki/conflicts/<slug>.md` page to the user. Do not auto-write it. If the user confirms, write it and add a line to `## ⚠ Open conflicts` and `## Conflicts` in `index.md`. If the user declines, the inline `> ⚠ contradicted by` marker stays as the only record.
+9. Run any custom workflows SCHEMA's "Workflows" section requires (e.g. "extract one open question per paper").
+10. Report: vault used, pages created, pages updated, contradictions raised, conflict-page proposals (accepted/declined). Suggest a useful follow-up.
